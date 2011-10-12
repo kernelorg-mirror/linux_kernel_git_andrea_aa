@@ -661,12 +661,14 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 		entry = mk_pmd(page, vma->vm_page_prot);
 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
 		entry = pmd_mkhuge(entry);
+
 		/*
-		 * The spinlocking to take the lru_lock inside
-		 * page_add_new_anon_rmap() acts as a full memory
-		 * barrier to be sure clear_huge_page writes become
-		 * visible after the set_pmd_at() write.
+		 * Need a write barrier to ensure the writes from
+		 * clear_huge_page become visible before the
+		 * set_pmd_at
 		 */
+		smp_wmb();
+
 		page_add_new_anon_rmap(page, vma, haddr);
 		set_pmd_at(mm, haddr, pmd, entry);
 		prepare_pmd_huge_pte(pgtable, mm);
