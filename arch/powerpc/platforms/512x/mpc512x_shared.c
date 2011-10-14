@@ -197,7 +197,7 @@ static inline void mpc512x_free_bootmem(struct page *page)
 {
 	__ClearPageReserved(page);
 	BUG_ON(PageTail(page));
-	BUG_ON(atomic_read(&page->_count) > 1);
+	BUG_ON(__page_count(page) > 1);
 	atomic_set(&page->_count, 1);
 	__free_page(page);
 	totalram_pages++;

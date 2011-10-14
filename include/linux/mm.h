@@ -269,12 +269,17 @@ struct inode;
  * routine so they can be sure the page doesn't go away from under them.
  */
 
+static inline int __page_count(struct page *page)
+{
+	return atomic_read(&page->_count);
+}
+
 /*
  * Drop a ref, return true if the refcount fell to zero (the page has no users)
  */
 static inline int put_page_testzero(struct page *page)
 {
-	VM_BUG_ON(atomic_read(&page->_count) == 0);
+	VM_BUG_ON(__page_count(page) == 0);
 	return atomic_dec_and_test(&page->_count);
 }
 
@@ -375,7 +380,7 @@ static inline int page_mapcount(struct page *page)
 
 static inline int page_count(struct page *page)
 {
-	return atomic_read(&compound_head(page)->_count);
+	return __page_count(compound_head(page));
 }
 
 static inline void get_huge_page_tail(struct page *page)
@@ -385,7 +390,7 @@ static inline void get_huge_page_tail(struct page *page)
 	 * from under us.
 	 */
 	VM_BUG_ON(page_mapcount(page) < 0);
-	VM_BUG_ON(atomic_read(&page->_count) != 0);
+	VM_BUG_ON(__page_count(page) != 0);
 	atomic_inc(&page->_mapcount);
 }
 
@@ -400,7 +405,7 @@ static inline void get_page(struct page *page)
 	 * Getting a normal page or the head of a compound page
 	 * requires to already have an elevated page->_count.
 	 */
-	VM_BUG_ON(atomic_read(&page->_count) <= 0);
+	VM_BUG_ON(__page_count(page) <= 0);
 	atomic_inc(&page->_count);
 }
 
