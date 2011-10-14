@@ -1243,7 +1243,7 @@ static void __split_huge_page_refcount(struct page *page)
 		tail_count += page_mapcount(page_tail);
 		/* check for overflow */
 		BUG_ON(tail_count < 0);
-		BUG_ON(atomic_read(&page_tail->_count) != 0);
+		BUG_ON(__page_count(page_tail) != 0);
 		/*
 		 * tail_page->_count is zero and not changing from
 		 * under us. But get_page_unless_zero() may be running
@@ -1309,7 +1309,7 @@ static void __split_huge_page_refcount(struct page *page)
 		lru_add_page_tail(zone, page, page_tail);
 	}
 	atomic_sub(tail_count, &page->_count);
-	BUG_ON(atomic_read(&page->_count) <= 0);
+	BUG_ON(__page_count(page) <= 0);
 
 	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
 	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);

@@ -1262,7 +1262,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
 				 * page pin.
 				 */
 				if (!PageTail(cursor_page) &&
-				    !atomic_read(&cursor_page->_count))
+				    !__page_count(cursor_page))
 					continue;
 				break;
 			}
