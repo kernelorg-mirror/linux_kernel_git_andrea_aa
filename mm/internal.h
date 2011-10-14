@@ -28,7 +28,7 @@ static inline void set_page_count(struct page *page, int v)
 static inline void set_page_refcounted(struct page *page)
 {
 	VM_BUG_ON(PageTail(page));
-	VM_BUG_ON(atomic_read(&page->_count));
+	VM_BUG_ON(__page_count(page));
 	set_page_count(page, 1);
 }
 
@@ -51,8 +51,8 @@ static inline void __get_page_tail_foll(struct page *page,
 	 * speculative page access (like in
 	 * page_cache_get_speculative()) on tail pages.
 	 */
-	VM_BUG_ON(atomic_read(&page->first_page->_count) <= 0);
-	VM_BUG_ON(atomic_read(&page->_count) != 0);
+	VM_BUG_ON(__page_count(page->first_page) <= 0);
+	VM_BUG_ON(__page_count(page) != 0);
 	VM_BUG_ON(page_mapcount(page) < 0);
 	if (get_page_head)
 		atomic_inc(&page->first_page->_count);
@@ -78,7 +78,7 @@ static inline void get_page_foll(struct page *page)
 		 * Getting a normal page or the head of a compound page
 		 * requires to already have an elevated page->_count.
 		 */
-		VM_BUG_ON(atomic_read(&page->_count) <= 0);
+		VM_BUG_ON(__page_count(page) <= 0);
 		atomic_inc(&page->_count);
 	}
 }
