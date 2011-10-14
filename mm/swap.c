@@ -133,8 +133,8 @@ out_put_single:
 			/* __split_huge_page_refcount will wait now */
 			VM_BUG_ON(page_mapcount(page) <= 0);
 			atomic_dec(&page->_mapcount);
-			VM_BUG_ON(atomic_read(&page_head->_count) <= 0);
-			VM_BUG_ON(atomic_read(&page->_count) != 0);
+			VM_BUG_ON(__page_count(page_head) <= 0);
+			VM_BUG_ON(__page_count(page) != 0);
 			compound_unlock_irqrestore(page_head, flags);
 
 skip_lock_tail:
