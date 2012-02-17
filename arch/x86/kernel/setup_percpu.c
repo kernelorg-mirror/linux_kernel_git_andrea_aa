@@ -246,6 +246,7 @@ void __init setup_per_cpu_areas(void)
 		 * So set them all (boot cpu and all APs).
 		 */
 		set_cpu_numa_node(cpu, early_cpu_to_node(cpu));
+		printk("set_cpu_numa_node cpu %d, node %d\n", cpu, early_cpu_to_node(cpu));
 #endif
 		/*
 		 * Up to this point, the boot CPU has been using .init.data

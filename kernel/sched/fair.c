@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/profile.h>
 #include <linux/interrupt.h>
+#include <linux/autonuma_sched.h>
 
 #include <trace/events/sched.h>
 
@@ -2633,6 +2634,8 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 
 	/* Traverse only the allowed CPUs */
 	for_each_cpu_and(i, sched_group_cpus(group), tsk_cpus_allowed(p)) {
+		if (task_autonuma_cpu(p, i))
+			continue;
 		load = weighted_cpuload(i);
 
 		if (load < min_load || (load == min_load && i == this_cpu)) {
@@ -2654,26 +2657,30 @@ static int select_idle_sibling(struct task_struct *p, int target)
 	struct sched_domain *sd;
 	struct sched_group *sg;
 	int i;
+	bool numa;
 
 	/*
 	 * If the task is going to be woken-up on this cpu and if it is
 	 * already idle, then it is the right target.
 	 */
-	if (target == cpu && idle_cpu(cpu))
+	if (target == cpu && idle_cpu(cpu) && task_autonuma_cpu(p, cpu))
 		return cpu;
 
 	/*
 	 * If the task is going to be woken-up on the cpu where it previously
 	 * ran and if it is currently idle, then it the right target.
 	 */
-	if (target == prev_cpu && idle_cpu(prev_cpu))
+	if (target == prev_cpu && idle_cpu(prev_cpu) &&
+	    task_autonuma_cpu(p, prev_cpu))
 		return prev_cpu;
 
 	/*
 	 * Otherwise, iterate the domains and find an elegible idle cpu.
 	 */
+	numa = true;
 	rcu_read_lock();
 
+again:
 	sd = rcu_dereference(per_cpu(sd_llc, target));
 	for_each_lower_domain(sd) {
 		sg = sd->groups;
@@ -2683,7 +2690,8 @@ static int select_idle_sibling(struct task_struct *p, int target)
 				goto next;
 
 			for_each_cpu(i, sched_group_cpus(sg)) {
-				if (!idle_cpu(i))
+				if (!idle_cpu(i) ||
+				    (numa && !task_autonuma_cpu(p, i)))
 					goto next;
 			}
 
@@ -2693,6 +2701,10 @@ static int select_idle_sibling(struct task_struct *p, int target)
 next:
 			sg = sg->next;
 		} while (sg != sd->groups);
+	}
+	if (numa) {
+		numa = false;
+		goto again;
 	}
 done:
 	rcu_read_unlock();
@@ -2726,7 +2738,8 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 		return prev_cpu;
 
 	if (sd_flag & SD_BALANCE_WAKE) {
-		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p)))
+		if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p)) &&
+		    task_autonuma_cpu(p, cpu))
 			want_affine = 1;
 		new_cpu = prev_cpu;
 	}
@@ -2788,6 +2801,7 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 		goto unlock;
 	}
 
+	prev_cpu = new_cpu;
 	while (sd) {
 		int load_idx = sd->forkexec_idx;
 		struct sched_group *group;
@@ -2811,6 +2825,7 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 		if (new_cpu == -1 || new_cpu == cpu) {
 			/* Now try balancing at a lower domain level of cpu */
 			sd = sd->child;
+			new_cpu = prev_cpu;
 			continue;
 		}
 
@@ -2826,6 +2841,7 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 		}
 		/* while loop will break here if sd == NULL */
 	}
+	BUG_ON(new_cpu < 0);
 unlock:
 	rcu_read_unlock();
 
@@ -3146,13 +3162,14 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 		     int *lb_flags)
 {
 	int tsk_cache_hot = 0;
+	struct cpumask *allowed = tsk_cpus_allowed(p);
 	/*
 	 * We do not migrate tasks that are:
 	 * 1) running (obviously), or
 	 * 2) cannot be migrated to this CPU due to cpus_allowed, or
 	 * 3) are cache-hot on their current CPU.
 	 */
-	if (!cpumask_test_cpu(this_cpu, tsk_cpus_allowed(p))) {
+	if (!cpumask_test_cpu(this_cpu, allowed)) {
 		schedstat_inc(p, se.statistics.nr_failed_migrations_affine);
 		return 0;
 	}
@@ -3162,6 +3179,9 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 		schedstat_inc(p, se.statistics.nr_failed_migrations_running);
 		return 0;
 	}
+
+	if (!sched_autonuma_can_migrate_task(p, this_cpu, idle, allowed))
+		return 0;
 
 	/*
 	 * Aggressive migration if:
@@ -3202,7 +3222,10 @@ move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	struct task_struct *p, *n;
 	struct cfs_rq *cfs_rq;
 	int pinned = 0;
+	bool numa;
 
+	numa = true;
+numa_repeat:
 	for_each_leaf_cfs_rq(busiest, cfs_rq) {
 		list_for_each_entry_safe(p, n, &cfs_rq->tasks, se.group_node) {
 			if (throttled_lb_pair(task_group(p),
@@ -3210,7 +3233,8 @@ move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 				break;
 
 			if (!can_migrate_task(p, busiest, this_cpu,
-						sd, idle, &pinned))
+					      sd, numa ? CPU_NUMA : idle,
+					      &pinned))
 				continue;
 
 			pull_task(busiest, p, this_rq, this_cpu);
@@ -3222,6 +3246,10 @@ move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			schedstat_inc(sd, lb_gained[idle]);
 			return 1;
 		}
+	}
+	if (numa) {
+		numa = false;
+		goto numa_repeat;
 	}
 
 	return 0;
@@ -3236,10 +3264,13 @@ balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	int loops = 0, pulled = 0;
 	long rem_load_move = max_load_move;
 	struct task_struct *p, *n;
+	bool numa;
 
 	if (max_load_move == 0)
 		goto out;
 
+	numa = true;
+numa_repeat:
 	list_for_each_entry_safe(p, n, &busiest_cfs_rq->tasks, se.group_node) {
 		if (loops++ > sysctl_sched_nr_migrate) {
 			*lb_flags |= LBF_NEED_BREAK;
@@ -3247,7 +3278,8 @@ balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		}
 
 		if ((p->se.load.weight >> 1) > rem_load_move ||
-		    !can_migrate_task(p, busiest, this_cpu, sd, idle,
+		    !can_migrate_task(p, busiest, this_cpu, sd,
+				      numa ? CPU_NUMA : idle,
 				      lb_flags))
 			continue;
 
@@ -3263,9 +3295,12 @@ balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		 */
 		if (idle == CPU_NEWLY_IDLE) {
 			*lb_flags |= LBF_ABORT;
-			break;
+			goto out;
 		}
 #endif
+		if (!numa)
+			/* not idle anymore after pulling first task */
+			idle = CPU_NOT_IDLE;
 
 		/*
 		 * We only want to steal up to the prescribed amount of
@@ -3273,6 +3308,10 @@ balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		 */
 		if (rem_load_move <= 0)
 			break;
+	}
+	if (rem_load_move > 0 && numa) {
+		numa = false;
+		goto numa_repeat;
 	}
 out:
 	/*

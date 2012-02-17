@@ -12,6 +12,7 @@
 #include <linux/completion.h>
 #include <linux/cpumask.h>
 #include <linux/page-debug-flags.h>
+#include <linux/autonuma_types.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
 
@@ -123,6 +124,30 @@ struct page {
 		struct kmem_cache *slab;	/* SLUB: Pointer to slab */
 		struct page *first_page;	/* Compound tail pages */
 	};
+
+#ifdef CONFIG_AUTONUMA
+	/*
+	 * FIXME: move to pgdat section along with the memcg and allocate
+	 * at runtime only in presence of a numa system.
+	 */
+	/*
+	 * To modify autonuma_last_nid lockless the architecture,
+	 * needs SMP atomic granularity < sizeof(long), not all archs
+	 * have that, notably some alpha. Archs without that requires
+	 * autonuma_last_nid to be a long.
+	 */
+#if BITS_PER_LONG > 32
+	int autonuma_migrate_nid;
+	int autonuma_last_nid;
+#else
+#if MAX_NUMNODES >= 32768
+#error "too many nodes"
+#endif
+	short autonuma_migrate_nid;
+	short autonuma_last_nid;
+#endif
+	struct list_head autonuma_migrate_node;
+#endif
 
 	/*
 	 * On machines where all RAM is mapped into kernel address space,
@@ -387,6 +412,10 @@ struct mm_struct {
 #endif
 #ifdef CONFIG_CPUMASK_OFFSTACK
 	struct cpumask cpumask_allocation;
+#endif
+#ifdef CONFIG_AUTONUMA
+	/* this is used by the scheduler and the page allocator */
+	struct mm_autonuma *mm_autonuma;
 #endif
 };
 

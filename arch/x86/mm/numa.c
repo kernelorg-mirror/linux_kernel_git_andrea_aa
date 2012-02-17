@@ -64,8 +64,10 @@ int __cpuinit numa_cpu_node(int cpu)
 {
 	int apicid = early_per_cpu(x86_cpu_to_apicid, cpu);
 
-	if (apicid != BAD_APICID)
+	if (apicid != BAD_APICID) {
+		printk("cpu %d apicid %d node %d\n", cpu, apicid, __apicid_to_node[apicid]);
 		return __apicid_to_node[apicid];
+	}
 	return NUMA_NO_NODE;
 }
 
@@ -97,8 +99,11 @@ void __cpuinit numa_set_node(int cpu, int node)
 #endif
 	per_cpu(x86_cpu_to_node_map, cpu) = node;
 
-	if (node != NUMA_NO_NODE)
+	if (node != NUMA_NO_NODE) {
 		set_cpu_numa_node(cpu, node);
+		dump_stack();
+		printk("numa cpu %d node %d\n", cpu, node);
+	}
 }
 
 void __cpuinit numa_clear_node(int cpu)

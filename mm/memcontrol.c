@@ -3168,10 +3168,10 @@ int mem_cgroup_prepare_migration(struct page *page,
 
 	*memcgp = NULL;
 
-	VM_BUG_ON(PageTransHuge(page));
 	if (mem_cgroup_disabled())
 		return 0;
 
+	VM_BUG_ON(PageTransHuge(page));
 	pc = lookup_page_cgroup(page);
 	lock_page_cgroup(pc);
 	if (PageCgroupUsed(pc)) {

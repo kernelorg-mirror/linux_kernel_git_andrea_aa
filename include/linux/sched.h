@@ -797,6 +797,7 @@ enum cpu_idle_type {
 	CPU_IDLE,
 	CPU_NOT_IDLE,
 	CPU_NEWLY_IDLE,
+	CPU_NUMA,
 	CPU_MAX_IDLE_TYPES
 };
 
@@ -1525,6 +1526,9 @@ struct task_struct {
 	struct mempolicy *mempolicy;	/* Protected by alloc_lock */
 	short il_next;
 	short pref_node_fork;
+#ifdef CONFIG_AUTONUMA
+	struct sched_autonuma *sched_autonuma;
+#endif
 #endif
 	struct rcu_head rcu;
 

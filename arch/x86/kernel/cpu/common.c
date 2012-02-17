@@ -1195,8 +1195,10 @@ void __cpuinit cpu_init(void)
 
 #ifdef CONFIG_NUMA
 	if (cpu != 0 && percpu_read(numa_node) == 0 &&
-	    early_cpu_to_node(cpu) != NUMA_NO_NODE)
+	    early_cpu_to_node(cpu) != NUMA_NO_NODE) {
 		set_numa_node(early_cpu_to_node(cpu));
+		printk("cpu %d node %d\n", cpu, early_cpu_to_node(cpu));
+	}
 #endif
 
 	me = current;

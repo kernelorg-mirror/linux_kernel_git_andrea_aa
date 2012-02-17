@@ -279,6 +279,7 @@ static inline int pmd_none_or_clear_bad(pmd_t *pmd)
 	if (pmd_none(*pmd))
 		return 1;
 	if (unlikely(pmd_bad(*pmd))) {
+		dump_stack();
 		pmd_clear_bad(pmd);
 		return 1;
 	}
@@ -499,6 +500,18 @@ static inline int pmd_trans_unstable(pmd_t *pmd)
 	return 0;
 #endif
 }
+
+#ifndef CONFIG_AUTONUMA
+static inline int pte_numa(pte_t pte)
+{
+	return 0;
+}
+
+static inline int pmd_numa(pmd_t pmd)
+{
+	return 0;
+}
+#endif
 
 #endif /* !__ASSEMBLY__ */
 

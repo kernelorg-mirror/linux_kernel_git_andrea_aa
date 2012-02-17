@@ -348,8 +348,10 @@ static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
 	unsigned apicid = c->apicid;
 
 	node = numa_cpu_node(cpu);
-	if (node == NUMA_NO_NODE)
+	if (node == NUMA_NO_NODE) {
 		node = per_cpu(cpu_llc_id, cpu);
+		printk("cpu_llc_id cpu %d node %d\n", cpu, node);
+	}
 
 	/*
 	 * If core numbers are inconsistent, it's likely a multi-fabric platform,
