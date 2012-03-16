@@ -86,16 +86,18 @@ void sched_autonuma_balance(void)
 	int cpu, nid, selected_cpu, selected_nid;
 	int cpu_nid = numa_node_id();
 	int this_cpu = smp_processor_id();
-	long weight_others[NR_CPUS];
-	long weight_current[MAX_NUMNODES];
-	long weight_current_mm[MAX_NUMNODES];
 	unsigned long p_w, p_t, m_w, m_t;
 	unsigned long weight_delta_max, weight;
 	struct cpumask *allowed;
 	struct migration_arg arg;
 	struct task_struct *p = current;
 	struct sched_autonuma *sched_autonuma = p->sched_autonuma;
-	DECLARE_BITMAP(mm_mask, MAX_NUMNODES);
+
+	/* per-cpu statically allocated in runqueues */
+	long *weight_others;
+	long *weight_current;
+	long *weight_current_mm;
+	unsigned long *mm_mask;
 
 	if (!sched_autonuma || sched_autonuma->autonuma_stop_one_cpu || !p->mm)
 		return;
@@ -121,6 +123,11 @@ void sched_autonuma_balance(void)
 		return;
 #endif
 	}
+
+	weight_others = cpu_rq(this_cpu)->weight_others;
+	weight_current = cpu_rq(this_cpu)->weight_current;
+	weight_current_mm = cpu_rq(this_cpu)->weight_current_mm;
+	mm_mask = cpu_rq(this_cpu)->mm_mask;
 
 	for_each_online_node(nid) {
 		m_w = ACCESS_ONCE(p->mm->mm_autonuma->numa_fault[nid]);
