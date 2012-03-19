@@ -34,7 +34,7 @@ static int autonuma_balance_blind(struct task_struct *p, int this_cpu,
 		selected_nid = cpu_nid;
 
 		nr_mm_max = 0;
-		for_each_cpu_and(cpu, cpumask_of_node(nid), allowed) {
+		for_each_cpu_and(cpu, cpumask_of_node(cpu_nid), allowed) {
 			struct rq *rq = cpu_rq(cpu);
 			if (rq->curr->mm == mm)
 				nr_mm_max++;
