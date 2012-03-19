@@ -478,7 +478,7 @@ struct rq {
 	long weight_others[NR_CPUS];
 	long weight_current[MAX_NUMNODES];
 	long weight_current_mm[MAX_NUMNODES];
-	DECLARE_BITMAP(mm_mask, MAX_NUMNODES);
+	DECLARE_BITMAP(mm_mask, NR_CPUS);
 #endif
 };
 

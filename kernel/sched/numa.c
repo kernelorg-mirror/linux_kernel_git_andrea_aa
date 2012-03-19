@@ -143,7 +143,7 @@ void sched_autonuma_balance(void)
 		weight_current[nid] = p_w*AUTONUMA_BALANCE_SCALE/p_t;
 	}
 
-	bitmap_zero(mm_mask, MAX_NUMNODES);
+	bitmap_zero(mm_mask, NR_CPUS);
 	for_each_online_node(nid) {
 		if (nid == cpu_nid)
 			continue;
