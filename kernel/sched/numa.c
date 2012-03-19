@@ -150,6 +150,8 @@ void sched_autonuma_balance(void)
 		for_each_cpu_and(cpu, cpumask_of_node(nid), allowed) {
 			struct mm_struct *mm;
 			struct rq *rq = cpu_rq(cpu);
+			if (!cpu_online(cpu))
+				continue;
 			//weight_others[cpu] = AUTONUMA_BALANCE_SCALE*2+1;
 			weight_others[cpu] = LONG_MAX;
 #if 1
@@ -209,6 +211,8 @@ void sched_autonuma_balance(void)
 			continue;
 		for_each_cpu_and(cpu, cpumask_of_node(nid), allowed) {
 			long w_nid, w_cpu_nid;
+			if (!cpu_online(cpu))
+				continue;
 			if (test_bit(cpu, mm_mask)) {
 				w_nid = weight_current[nid];
 				w_cpu_nid = weight_current[cpu_nid];
@@ -292,7 +296,10 @@ bool sched_autonuma_can_migrate_task(struct task_struct *p, int this_cpu,
 				 allowed) {
 			struct rq *rq = cpu_rq(cpu);
 			int _autonuma_node;
-			struct sched_autonuma *sa = rq->curr->sched_autonuma;
+			struct sched_autonuma *sa;
+			if (!cpu_online(cpu))
+				continue;
+			sa = rq->curr->sched_autonuma;
 			_autonuma_node = ACCESS_ONCE(sa->autonuma_node);
 			if (_autonuma_node != autonuma_node)
 				return false;
