@@ -522,7 +522,8 @@ static int knumad_scan_pmd(struct mm_struct *mm,
 				spin_unlock(&mm->page_table_lock);
 				goto out;
 			}
-		}
+		} else
+			spin_unlock(&mm->page_table_lock);
 	}
 
 	VM_BUG_ON(!pmd_present(*pmd));
