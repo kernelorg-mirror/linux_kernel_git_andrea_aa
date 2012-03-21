@@ -3311,6 +3311,7 @@ numa_repeat:
 	}
 	if (rem_load_move > 0 && numa) {
 		numa = false;
+		loops = 0;
 		goto numa_repeat;
 	}
 out:
