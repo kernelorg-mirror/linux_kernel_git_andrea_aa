@@ -318,7 +318,7 @@ static int numa_hinting_fault_memory_follow_cpu(struct task_struct *p,
 void numa_hinting_fault(struct page *page, int numpages)
 {
 	WARN_ON_ONCE(!current->mm);
-	if (likely(current->mm && autonuma_enabled())) {
+	if (likely(current->mm && !current->mempolicy && autonuma_enabled())) {
 		struct task_struct *p = current;
 		int cpu_nid, page_nid, access_nid;
 		bool pass;
