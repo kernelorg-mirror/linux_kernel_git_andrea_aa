@@ -143,6 +143,7 @@ struct page {
 #if MAX_NUMNODES >= 32768
 #error "too many nodes"
 #endif
+	/* FIXME: remember to check the updates are atomic */
 	short autonuma_migrate_nid;
 	short autonuma_last_nid;
 #endif
