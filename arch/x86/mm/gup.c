@@ -164,7 +164,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
 		 * wait_split_huge_page() would never return as the
 		 * tlb flush IPI wouldn't run.
 		 */
-		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+		if (pmd_none(pmd) || pmd_trans_splitting(pmd) || pmd_numa(pmd))
 			return 0;
 		if (unlikely(pmd_large(pmd))) {
 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
