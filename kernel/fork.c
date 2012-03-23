@@ -209,6 +209,7 @@ void free_task(struct task_struct *tsk)
 {
 	account_kernel_stack(tsk->stack, -1);
 	arch_release_thread_info(tsk->stack);
+	free_task_autonuma(tsk);
 	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
 	ftrace_graph_exit_task(tsk);
@@ -264,6 +265,9 @@ void __init fork_init(unsigned long mempages)
 	/* do the arch specific task caches init */
 	arch_task_cache_init();
 
+	/* prepare task_autonuma for alloc_task_autonuma/free_task_autonuma */
+	task_autonuma_init();
+
 	/*
 	 * The default maximum number of threads is set to a safe
 	 * value: the thread structures can take up at most half
@@ -308,6 +312,10 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 
 	err = arch_dup_task_struct(tsk, orig);
 	if (err)
+		goto free_ti;
+
+	if (unlikely(alloc_task_autonuma(tsk, orig, node)))
+		/* free_thread_info() undoes arch_dup_task_struct() too */
 		goto free_ti;
 
 	tsk->stack = ti;
