@@ -467,6 +467,25 @@ struct rq {
 #ifdef CONFIG_SMP
 	struct llist_head wake_list;
 #endif
+#ifdef CONFIG_AUTONUMA
+	/* stop_one_cpu_nowait() data used by autonuma_balance_cpu_stop() */
+	bool autonuma_balance;
+	int autonuma_balance_dst_cpu;
+	struct task_struct *autonuma_balance_task;
+	struct cpu_stop_work autonuma_balance_work;
+	/*
+	 * Per-cpu arrays used to compute the per-thread and
+	 * per-process NUMA affinity weights (per nid) for the current
+	 * process. Allocated statically to avoid overflowing the
+	 * stack with large MAX_NUMNODES values.
+	 *
+	 * FIXME: allocate with dynamic num_possible_nodes() array
+	 * sizes and only if autonuma is possible, to save some dozen
+	 * KB of RAM when booting on non NUMA (or small NUMA) systems.
+	 */
+	long task_numa_weight[MAX_NUMNODES];
+	long mm_numa_weight[MAX_NUMNODES];
+#endif
 };
 
 static inline int cpu_of(struct rq *rq)
