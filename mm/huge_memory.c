@@ -573,6 +573,12 @@ static int __init hugepage_init(void)
 
 	set_recommended_min_free_kbytes();
 
+	/* Hack, remove after THP native migration */
+	if (autonuma_possible()) {
+		khugepaged_scan_sleep_millisecs = 100;
+		khugepaged_alloc_sleep_millisecs = 10000;
+	}
+
 	return 0;
 out:
 	hugepage_exit_sysfs(hugepage_kobj);
