@@ -71,6 +71,17 @@
 #define _PAGE_FILE	(_AT(pteval_t, 1) << _PAGE_BIT_FILE)
 #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
 
+/*
+ * Cannot be set on pte. The fact it's in between _PAGE_FILE and
+ * _PAGE_PROTNONE avoids having to alter the swp entries.
+ */
+#define _PAGE_NUMA_PTE	_PAGE_PSE
+/*
+ * Cannot be set on pmd, if transparent hugepages will be swapped out
+ * the swap entry offset must start above it.
+ */
+#define _PAGE_NUMA_PMD	_PAGE_UNUSED2
+
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
 			 _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
