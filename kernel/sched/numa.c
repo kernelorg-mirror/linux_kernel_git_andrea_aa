@@ -170,6 +170,7 @@ void sched_autonuma_balance(void)
 				continue;
 			raw_spin_lock_irq(&rq->lock);
 			/* recheck after implicit barrier() */
+			mm = rq->curr->mm;
 			if (!mm) {
 				raw_spin_unlock_irq(&rq->lock);
 				continue;
