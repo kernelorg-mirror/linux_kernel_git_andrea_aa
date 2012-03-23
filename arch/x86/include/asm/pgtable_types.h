@@ -64,6 +64,34 @@
 #define _PAGE_FILE	(_AT(pteval_t, 1) << _PAGE_BIT_FILE)
 #define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
 
+/*
+ * _PAGE_NUMA_PTE indicates that this page will trigger a numa hinting
+ * minor page fault to gather autonuma statistics (see
+ * pte_numa()). The bit picked (7) is purposefully in between the
+ * _PAGE_FILE (6) and _PAGE_PROTNONE (8) bits. Therefore, it doesn't
+ * require changes to the swp entry format because that bit is always
+ * zero when the pte is not present. It is also always zero when the
+ * pte is present (_PAGE_PAT (7) is never set on the pte according to
+ * arch/x86/mm/pat.c).
+ *
+ * The bit picked must be always zero when the pmd is present and not
+ * present, so that we don't lose information when we set it while
+ * atomically clearing the present bit.
+ */
+#define _PAGE_NUMA_PTE	_PAGE_PSE
+/*
+ * _PAGE_NUMA_PMD indicates that this page will trigger a numa hinting
+ * minor page fault to gather autonuma statistics (see
+ * pmd_numa())._PAGE_IOMAP is used by Xen but only on the pte, never
+ * on the pmd. If transparent hugepages will be swapped out natively,
+ * the swap entry offset will have to start above _PAGE_IOMAP.
+ *
+ * The bit picked must be always zero when the pmd is present and not
+ * present, so that we don't lose information when we set it while
+ * atomically clearing the present bit.
+ */
+#define _PAGE_NUMA_PMD	_PAGE_IOMAP
+
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
 			 _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |	\
