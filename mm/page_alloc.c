@@ -614,6 +614,10 @@ static inline int free_pages_check(struct page *page)
 		bad_page(page);
 		return 1;
 	}
+	autonuma_migrate_page_remove(page);
+#ifdef CONFIG_AUTONUMA
+	ACCESS_ONCE(page->autonuma_last_nid) = -1;
+#endif
 	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
 		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
 	return 0;
