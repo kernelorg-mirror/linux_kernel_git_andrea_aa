@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/profile.h>
 #include <linux/interrupt.h>
+#include <linux/autonuma_sched.h>
 
 #include <trace/events/sched.h>
 
@@ -4931,6 +4932,9 @@ static void run_rebalance_domains(struct softirq_action *h)
 						CPU_IDLE : CPU_NOT_IDLE;
 
 	rebalance_domains(this_cpu, idle);
+
+	if (!this_rq->idle_balance)
+		sched_autonuma_balance();
 
 	/*
 	 * If this cpu has a pending nohz_balance_kick, then do the
