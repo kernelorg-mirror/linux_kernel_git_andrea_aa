@@ -17,6 +17,7 @@
 #include <linux/khugepaged.h>
 #include <linux/freezer.h>
 #include <linux/mman.h>
+#include <linux/autonuma.h>
 #include <asm/tlb.h>
 #include <asm/pgalloc.h>
 #include "internal.h"
@@ -1316,6 +1317,7 @@ static void __split_huge_page_refcount(struct page *page)
 		BUG_ON(!PageSwapBacked(page_tail));
 
 		lru_add_page_tail(page, page_tail, lruvec);
+		autonuma_migrate_split_huge_page(page, page_tail);
 	}
 	atomic_sub(tail_count, &page->_count);
 	BUG_ON(__page_count(page) <= 0);
