@@ -463,6 +463,12 @@ struct rq {
 #ifdef CONFIG_SMP
 	struct llist_head wake_list;
 #endif
+#ifdef CONFIG_AUTONUMA
+	long weight_others[NR_CPUS];
+	long weight_current[MAX_NUMNODES];
+	long weight_current_mm[MAX_NUMNODES];
+	DECLARE_BITMAP(mm_mask, NR_CPUS);
+#endif
 };
 
 static inline int cpu_of(struct rq *rq)
@@ -525,6 +531,12 @@ static inline struct sched_domain *highest_flag_domain(int cpu, int flag)
 
 DECLARE_PER_CPU(struct sched_domain *, sd_llc);
 DECLARE_PER_CPU(int, sd_llc_id);
+
+struct migration_arg {
+	struct task_struct *task;
+	int dest_cpu;
+};
+extern int migration_cpu_stop(void *data);
 
 #endif /* CONFIG_SMP */
 
