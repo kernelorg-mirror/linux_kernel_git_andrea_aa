@@ -1829,6 +1829,9 @@ static bool __collapse_huge_page_copy(pte_t *pte, struct page *page,
 {
 	pte_t *_pte;
 	bool mknuma = false;
+#ifdef CONFIG_AUTONUMA
+	int autonuma_last_nid = -1;
+#endif
 	for (_pte = pte; _pte < pte+HPAGE_PMD_NR; _pte++) {
 		pte_t pteval = *_pte;
 		struct page *src_page;
@@ -1838,6 +1841,17 @@ static bool __collapse_huge_page_copy(pte_t *pte, struct page *page,
 			add_mm_counter(vma->vm_mm, MM_ANONPAGES, 1);
 		} else {
 			src_page = pte_page(pteval);
+#ifdef CONFIG_AUTONUMA
+			/* pick the first one, better than nothing */
+			if (autonuma_last_nid < 0) {
+				autonuma_last_nid =
+					ACCESS_ONCE(src_page->
+						    autonuma_last_nid);
+				if (autonuma_last_nid >= 0)
+					ACCESS_ONCE(page->autonuma_last_nid) =
+						autonuma_last_nid;
+			}
+#endif
 			copy_user_highpage(page, src_page, address, vma);
 			VM_BUG_ON(page_mapcount(src_page) != 1);
 			VM_BUG_ON(page_count(src_page) != 0);
