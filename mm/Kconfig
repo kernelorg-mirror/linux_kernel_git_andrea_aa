@@ -211,6 +211,23 @@ config MIGRATION
 	  pages as migration can relocate pages to satisfy a huge page
 	  allocation instead of reclaiming.
 
+config AUTONUMA
+	bool "AutoNUMA"
+	select MIGRATION
+	depends on NUMA && HAVE_ARCH_AUTONUMA
+	help
+	  Automatic NUMA CPU scheduling and memory migration.
+
+	  Avoids the administrator to manually setup hard NUMA
+	  bindings in order to achieve optimal performance on NUMA
+	  hardware.
+
+config AUTONUMA_DEFAULT_ENABLED
+	bool "Auto NUMA default enabled"
+	depends on AUTONUMA
+	help
+	  Automatic NUMA CPU scheduling and memory migration enabled at boot.
+
 config PHYS_ADDR_T_64BIT
 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
 
