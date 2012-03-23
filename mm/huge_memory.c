@@ -1037,6 +1037,38 @@ out:
 	return page;
 }
 
+#ifdef CONFIG_AUTONUMA
+/* NUMA hinting page fault entry point for trans huge pmds */
+int huge_pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
+			pmd_t pmd, pmd_t *pmdp)
+{
+	struct page *page;
+
+	spin_lock(&mm->page_table_lock);
+	if (unlikely(!pmd_same(pmd, *pmdp)))
+		goto out_unlock;
+
+	page = pmd_page(pmd);
+	pmd = pmd_mknonnuma(pmd);
+	set_pmd_at(mm, addr & HPAGE_PMD_MASK, pmdp, pmd);
+	VM_BUG_ON(pmd_numa(*pmdp));
+	if (unlikely(page_mapcount(page) != 1))
+		goto out_unlock;
+	get_page(page);
+	spin_unlock(&mm->page_table_lock);
+
+	numa_hinting_fault(page, HPAGE_PMD_NR);
+
+	put_page(page);
+out:
+	return 0;
+
+out_unlock:
+	spin_unlock(&mm->page_table_lock);
+	goto out;
+}
+#endif
+
 int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 pmd_t *pmd, unsigned long addr)
 {

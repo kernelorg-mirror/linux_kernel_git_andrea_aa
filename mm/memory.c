@@ -57,6 +57,7 @@
 #include <linux/swapops.h>
 #include <linux/elf.h>
 #include <linux/gfp.h>
+#include <linux/autonuma.h>
 
 #include <asm/io.h>
 #include <asm/pgalloc.h>
@@ -3456,6 +3457,9 @@ int handle_pte_fault(struct mm_struct *mm,
 					pte, pmd, flags, entry);
 	}
 
+	if (pte_numa(entry))
+		return pte_numa_fixup(mm, vma, address, entry, pte, pmd);
+
 	ptl = pte_lockptr(mm, pmd);
 	spin_lock(ptl);
 	if (unlikely(!pte_same(*pte, entry)))
@@ -3530,6 +3534,9 @@ retry:
 		 */
 		orig_pmd = ACCESS_ONCE(*pmd);
 		if (pmd_trans_huge(orig_pmd)) {
+			if (pmd_numa(*pmd))
+				return huge_pmd_numa_fixup(mm, address,
+							   orig_pmd, pmd);
 			if (flags & FAULT_FLAG_WRITE &&
 			    !pmd_write(orig_pmd) &&
 			    !pmd_trans_splitting(orig_pmd)) {
@@ -3547,6 +3554,9 @@ retry:
 			return 0;
 		}
 	}
+
+	if (pmd_numa(*pmd))
+		return pmd_numa_fixup(mm, address, pmd);
 
 	/*
 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
