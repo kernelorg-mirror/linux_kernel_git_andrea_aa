@@ -7,6 +7,7 @@
 #include <linux/mmu_context.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/autonuma.h>
 
 #include <asm/mmu_context.h>
 
@@ -51,6 +52,8 @@ EXPORT_SYMBOL_GPL(use_mm);
 void unuse_mm(struct mm_struct *mm)
 {
 	struct task_struct *tsk = current;
+
+	autonuma_setup_new_exec(tsk);
 
 	task_lock(tsk);
 	sync_mm_rss(mm);
