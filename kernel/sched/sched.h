@@ -463,6 +463,20 @@ struct rq {
 #ifdef CONFIG_SMP
 	struct llist_head wake_list;
 #endif
+#ifdef CONFIG_AUTONUMA
+	/*
+	 * Per-cpu arrays to compute the per-thread and per-process
+	 * statistics. Allocated statically to avoid overflowing the
+	 * stack with large MAX_NUMNODES values.
+	 *
+	 * FIXME: allocate dynamically and with num_possible_nodes()
+	 * array sizes only if autonuma is not impossible, to save
+	 * some dozen KB of RAM when booting on not NUMA (or small
+	 * NUMA) systems.
+	 */
+	long task_numa_weight[MAX_NUMNODES];
+	long mm_numa_weight[MAX_NUMNODES];
+#endif
 };
 
 static inline int cpu_of(struct rq *rq)
@@ -525,6 +539,12 @@ static inline struct sched_domain *highest_flag_domain(int cpu, int flag)
 
 DECLARE_PER_CPU(struct sched_domain *, sd_llc);
 DECLARE_PER_CPU(int, sd_llc_id);
+
+struct migration_arg {
+	struct task_struct *task;
+	int dest_cpu;
+};
+extern int migration_cpu_stop(void *data);
 
 extern int group_balance_cpu(struct sched_group *sg);
 
