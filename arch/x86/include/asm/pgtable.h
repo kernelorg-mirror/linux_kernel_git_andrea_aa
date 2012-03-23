@@ -109,7 +109,7 @@ static inline int pte_write(pte_t pte)
 
 static inline int pte_file(pte_t pte)
 {
-	return pte_flags(pte) & _PAGE_FILE;
+	return (pte_flags(pte) & _PAGE_FILE) == _PAGE_FILE;
 }
 
 static inline int pte_huge(pte_t pte)
@@ -405,7 +405,9 @@ static inline int pte_same(pte_t a, pte_t b)
 
 static inline int pte_present(pte_t a)
 {
-	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE);
+	/* _PAGE_NUMA includes _PAGE_PROTNONE */
+	return pte_flags(a) & (_PAGE_PRESENT | _PAGE_PROTNONE |
+			       _PAGE_NUMA_PTE);
 }
 
 static inline int pte_hidden(pte_t pte)
@@ -415,7 +417,46 @@ static inline int pte_hidden(pte_t pte)
 
 static inline int pmd_present(pmd_t pmd)
 {
-	return pmd_flags(pmd) & _PAGE_PRESENT;
+	return pmd_flags(pmd) & (_PAGE_PRESENT | _PAGE_PROTNONE |
+				 _PAGE_NUMA_PMD);
+}
+
+#ifdef CONFIG_AUTONUMA
+static inline int pte_numa(pte_t pte)
+{
+	return (pte_flags(pte) &
+		(_PAGE_NUMA_PTE|_PAGE_PRESENT)) == _PAGE_NUMA_PTE;
+}
+
+static inline int pmd_numa(pmd_t pmd)
+{
+	return (pmd_flags(pmd) &
+		(_PAGE_NUMA_PMD|_PAGE_PRESENT)) == _PAGE_NUMA_PMD;
+}
+#endif
+
+static inline pte_t pte_mknotnuma(pte_t pte)
+{
+	pte = pte_clear_flags(pte, _PAGE_NUMA_PTE);
+	return pte_set_flags(pte, _PAGE_PRESENT|_PAGE_ACCESSED);
+}
+
+static inline pmd_t pmd_mknotnuma(pmd_t pmd)
+{
+	pmd = pmd_clear_flags(pmd, _PAGE_NUMA_PMD);
+	return pmd_set_flags(pmd, _PAGE_PRESENT|_PAGE_ACCESSED);
+}
+
+static inline pte_t pte_mknuma(pte_t pte)
+{
+	pte = pte_set_flags(pte, _PAGE_NUMA_PTE);
+	return pte_clear_flags(pte, _PAGE_PRESENT);
+}
+
+static inline pmd_t pmd_mknuma(pmd_t pmd)
+{
+	pmd = pmd_set_flags(pmd, _PAGE_NUMA_PMD);
+	return pmd_clear_flags(pmd, _PAGE_PRESENT);
 }
 
 static inline int pmd_none(pmd_t pmd)
@@ -474,6 +515,10 @@ static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address)
 
 static inline int pmd_bad(pmd_t pmd)
 {
+#ifdef CONFIG_AUTONUMA
+	if (pmd_numa(pmd))
+		return 0;
+#endif
 	return (pmd_flags(pmd) & ~_PAGE_USER) != _KERNPG_TABLE;
 }
 
