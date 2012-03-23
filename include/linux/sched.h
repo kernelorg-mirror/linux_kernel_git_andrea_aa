@@ -1523,6 +1523,9 @@ struct task_struct {
 	struct mempolicy *mempolicy;	/* Protected by alloc_lock */
 	short il_next;
 	short pref_node_fork;
+#ifdef CONFIG_AUTONUMA
+	struct task_autonuma *task_autonuma;
+#endif
 #endif
 	struct rcu_head rcu;
 
