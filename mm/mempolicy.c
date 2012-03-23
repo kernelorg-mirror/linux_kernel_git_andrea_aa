@@ -1951,10 +1951,18 @@ retry_cpuset:
 	 */
 	if (pol->mode == MPOL_INTERLEAVE)
 		page = alloc_page_interleave(gfp, order, interleave_nodes(pol));
-	else
+	else {
+		int nid = -1;
+#ifdef CONFIG_AUTONUMA
+		if (current->task_autonuma)
+			nid = current->task_autonuma->task_selected_nid;
+#endif
+		if (nid < 0)
+			nid = numa_node_id();
 		page = __alloc_pages_nodemask(gfp, order,
-				policy_zonelist(gfp, pol, numa_node_id()),
+				policy_zonelist(gfp, pol, nid),
 				policy_nodemask(gfp, pol));
+	}
 
 	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
 		goto retry_cpuset;
