@@ -169,8 +169,19 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
 		 * can't because it has irq disabled and
 		 * wait_split_huge_page() would never return as the
 		 * tlb flush IPI wouldn't run.
+		 *
+		 * The pmd_numa() check is needed because the code
+		 * doesn't check the _PAGE_PRESENT bit of the pmd if
+		 * the gup_pte_range() path is taken. NOTE: not all
+		 * gup_fast users will will access the page contents
+		 * using the CPU through the NUMA memory channels like
+		 * KVM does. So we're forced to trigger NUMA hinting
+		 * page faults unconditionally for all gup_fast users
+		 * even though NUMA hinting page faults aren't useful
+		 * to I/O drivers that will access the page with DMA
+		 * and not with the CPU.
 		 */
-		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
+		if (pmd_none(pmd) || pmd_trans_splitting(pmd) || pmd_numa(pmd))
 			return 0;
 		if (unlikely(pmd_large(pmd))) {
 			if (!gup_huge_pmd(pmd, addr, next, write, pages, nr))
