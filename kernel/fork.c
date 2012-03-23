@@ -168,6 +168,7 @@ static void account_kernel_stack(struct thread_info *ti, int account)
 void free_task(struct task_struct *tsk)
 {
 	account_kernel_stack(tsk->stack, -1);
+	free_sched_autonuma(tsk);
 	free_thread_info(tsk->stack);
 	rt_mutex_debug_task_free(tsk);
 	ftrace_graph_exit_task(tsk);
@@ -227,6 +228,8 @@ void __init fork_init(unsigned long mempages)
 	/* do the arch specific task caches init */
 	arch_task_cache_init();
 
+	sched_autonuma_init();
+
 	/*
 	 * The default maximum number of threads is set to a safe
 	 * value: the thread structures can take up at most half
@@ -259,23 +262,23 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 	struct thread_info *ti;
 	unsigned long *stackend;
 	int node = tsk_fork_get_node(orig);
-	int err;
 
 	prepare_to_copy(orig);
 
 	tsk = alloc_task_struct_node(node);
-	if (!tsk)
+	if (unlikely(!tsk))
 		return NULL;
 
 	ti = alloc_thread_info_node(tsk, node);
-	if (!ti) {
-		free_task_struct(tsk);
-		return NULL;
-	}
+	if (unlikely(!ti))
+		goto out_task_struct;
 
-	err = arch_dup_task_struct(tsk, orig);
-	if (err)
-		goto out;
+	if (unlikely(arch_dup_task_struct(tsk, orig)))
+		goto out_thread_info;
+
+	if (unlikely(alloc_sched_autonuma(tsk, orig, node)))
+		/* free_thread_info() undoes arch_dup_task_struct() too */
+		goto out_thread_info;
 
 	tsk->stack = ti;
 
@@ -303,8 +306,9 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 
 	return tsk;
 
-out:
+out_thread_info:
 	free_thread_info(ti);
+out_task_struct:
 	free_task_struct(tsk);
 	return NULL;
 }
