@@ -57,6 +57,7 @@
 #include <linux/swapops.h>
 #include <linux/elf.h>
 #include <linux/gfp.h>
+#include <linux/autonuma.h>
 
 #include <asm/io.h>
 #include <asm/pgalloc.h>
@@ -3401,6 +3402,32 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	return __do_fault(mm, vma, address, pmd, pgoff, flags, orig_pte);
 }
 
+static inline pte_t pte_numa_fixup(struct mm_struct *mm,
+				   struct vm_area_struct *vma,
+				   unsigned long addr, pte_t pte, pte_t *ptep)
+{
+	if (pte_numa(pte))
+		pte = __pte_numa_fixup(mm, vma, addr, pte, ptep);
+	return pte;
+}
+
+static inline void pmd_numa_fixup(struct mm_struct *mm,
+				  struct vm_area_struct *vma,
+				  unsigned long addr, pmd_t *pmd)
+{
+	if (pmd_numa(*pmd))
+		__pmd_numa_fixup(mm, vma, addr, pmd);
+}
+
+static inline pmd_t huge_pmd_numa_fixup(struct mm_struct *mm,
+					unsigned long addr,
+					pmd_t pmd, pmd_t *pmdp)
+{
+	if (pmd_numa(pmd))
+		pmd = __huge_pmd_numa_fixup(mm, addr, pmd, pmdp);
+	return pmd;
+}
+
 /*
  * These routines also need to handle stuff like marking pages dirty
  * and/or accessed for architectures that don't do it in hardware (most
@@ -3443,6 +3470,7 @@ int handle_pte_fault(struct mm_struct *mm,
 	spin_lock(ptl);
 	if (unlikely(!pte_same(*pte, entry)))
 		goto unlock;
+	entry = pte_numa_fixup(mm, vma, address, entry, pte);
 	if (flags & FAULT_FLAG_WRITE) {
 		if (!pte_write(entry))
 			return do_wp_page(mm, vma, address,
@@ -3504,6 +3532,8 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		pmd_t orig_pmd = *pmd;
 		barrier();
 		if (pmd_trans_huge(orig_pmd)) {
+			orig_pmd = huge_pmd_numa_fixup(mm, address,
+						       orig_pmd, pmd);
 			if (flags & FAULT_FLAG_WRITE &&
 			    !pmd_write(orig_pmd) &&
 			    !pmd_trans_splitting(orig_pmd))
@@ -3512,6 +3542,8 @@ int handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 			return 0;
 		}
 	}
+
+	pmd_numa_fixup(mm, vma, address, pmd);
 
 	/*
 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
