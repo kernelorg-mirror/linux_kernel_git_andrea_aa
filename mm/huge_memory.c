@@ -1030,6 +1030,23 @@ out:
 	return page;
 }
 
+#ifdef CONFIG_AUTONUMA
+pmd_t __huge_pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
+			    pmd_t pmd, pmd_t *pmdp)
+{
+	spin_lock(&mm->page_table_lock);
+	if (pmd_same(pmd, *pmdp)) {
+		struct page *page = pmd_page(pmd);
+		pmd = pmd_mknotnuma(pmd);
+		set_pmd_at(mm, addr & HPAGE_PMD_MASK, pmdp, pmd);
+		numa_hinting_fault(page, HPAGE_PMD_NR);
+		VM_BUG_ON(pmd_numa(pmd));
+	}
+	spin_unlock(&mm->page_table_lock);
+	return pmd;
+}
+#endif
+
 int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		 pmd_t *pmd, unsigned long addr)
 {
