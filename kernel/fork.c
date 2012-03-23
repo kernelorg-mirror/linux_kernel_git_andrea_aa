@@ -547,7 +547,7 @@ struct mm_struct *mm_alloc(void)
 	struct mm_struct *mm;
 
 	mm = allocate_mm();
-	if (!mm)
+	if (unlikely(!mm))
 		return NULL;
 
 	memset(mm, 0, sizeof(*mm));
