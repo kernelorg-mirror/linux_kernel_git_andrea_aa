@@ -709,6 +709,24 @@ typedef struct pglist_data {
 	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
 	int kswapd_max_order;
 	enum zone_type classzone_idx;
+#ifdef CONFIG_AUTONUMA
+	/*
+	 * lock serializing all lists with heads in the
+	 * autonuma_migrate_head[] array, and the
+	 * autonuma_nr_migrate_pages field.
+	 */
+	spinlock_t autonuma_lock;
+	/*
+	 * All pages from node "page_nid" to be migrated to this node,
+	 * will be queued into the list
+	 * autonuma_migrate_head[page_nid].
+	 */
+	struct list_head autonuma_migrate_head[MAX_NUMNODES];
+	/* number of pages from other nodes queued for migration to this node */
+	unsigned long autonuma_nr_migrate_pages;
+	/* waitqueue for this node knuma_migrated daemon */
+	wait_queue_head_t autonuma_knuma_migrated_wait;
+#endif
 } pg_data_t;
 
 #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
