@@ -23,6 +23,7 @@ unsigned long autonuma_flags __read_mostly =
 	(1<<AUTONUMA_SCHED_LOAD_BALANCE_STRICT_FLAG)|
 	(1<<AUTONUMA_SCHED_CLONE_RESET_FLAG)|
 	(1<<AUTONUMA_SCHED_FORK_RESET_FLAG)|
+	(1<<AUTONUMA_SCHED_SMT_FLAG)|
 #ifdef CONFIG_AUTONUMA_DEFAULT_ENABLED
 	(1<<AUTONUMA_FLAG)|
 #endif
@@ -1089,6 +1090,9 @@ SYSFS_ENTRY(defer, AUTONUMA_MIGRATE_DEFER_FLAG);
 SYSFS_ENTRY(load_balance_strict, AUTONUMA_SCHED_LOAD_BALANCE_STRICT_FLAG);
 SYSFS_ENTRY(clone_reset, AUTONUMA_SCHED_CLONE_RESET_FLAG);
 SYSFS_ENTRY(fork_reset, AUTONUMA_SCHED_FORK_RESET_FLAG);
+#ifdef CONFIG_SCHED_SMT
+SYSFS_ENTRY(smt, AUTONUMA_SCHED_SMT_FLAG);
+#endif
 
 #undef SYSFS_ENTRY
 
@@ -1205,6 +1209,9 @@ static struct attribute *scheduler_attr[] = {
 	&clone_reset_attr.attr,
 	&fork_reset_attr.attr,
 	&load_balance_strict_attr.attr,
+#ifdef CONFIG_SCHED_SMT
+	&smt_attr.attr,
+#endif
 	NULL,
 };
 static struct attribute_group scheduler_attr_group = {

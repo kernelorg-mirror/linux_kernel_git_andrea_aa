@@ -11,6 +11,30 @@
 
 #include "sched.h"
 
+static inline bool idle_cpu_avg(int cpu, bool require_avg_idle)
+{
+	struct rq *rq = cpu_rq(cpu);
+	return idle_cpu(cpu) && (!require_avg_idle ||
+				 rq->avg_idle > sysctl_sched_migration_cost);
+}
+
+/* A false avg_idle param makes it easier for smt_idle() to return true */
+static bool smt_idle(int _cpu, bool require_avg_idle)
+{
+#ifdef CONFIG_SCHED_SMT
+	int cpu;
+
+	for_each_cpu_and(cpu, topology_thread_cpumask(_cpu), cpu_online_mask) {
+		if (cpu == _cpu)
+			continue;
+		if (!idle_cpu_avg(cpu, require_avg_idle))
+			return false;
+	}
+#endif
+
+	return true;
+}
+
 #define AUTONUMA_BALANCE_SCALE 1000
 
 /*
@@ -47,6 +71,7 @@ void sched_autonuma_balance(void)
 	int cpu, nid, selected_cpu, selected_nid;
 	int cpu_nid = numa_node_id();
 	int this_cpu = smp_processor_id();
+	int this_smt_idle;
 	unsigned long p_w, p_t, m_w, m_t;
 	unsigned long weight_delta_max, weight;
 	struct cpumask *allowed;
@@ -96,6 +121,7 @@ void sched_autonuma_balance(void)
 		weight_current[nid] = p_w*AUTONUMA_BALANCE_SCALE/p_t;
 	}
 
+	this_smt_idle = smt_idle(this_cpu, false);
 	bitmap_zero(mm_mask, NR_CPUS);
 	for_each_online_node(nid) {
 		if (nid == cpu_nid)
@@ -103,11 +129,24 @@ void sched_autonuma_balance(void)
 		for_each_cpu_and(cpu, cpumask_of_node(nid), allowed) {
 			struct mm_struct *mm;
 			struct rq *rq = cpu_rq(cpu);
+			bool other_smt_idle;
 			if (!cpu_online(cpu))
 				continue;
 			weight_others[cpu] = LONG_MAX;
-			if (idle_cpu(cpu) &&
-			    rq->avg_idle > sysctl_sched_migration_cost) {
+
+			other_smt_idle = smt_idle(cpu, true);
+			if (autonuma_sched_smt() &&
+			    this_smt_idle && !other_smt_idle)
+				continue;
+
+			if (idle_cpu_avg(cpu, true)) {
+				if (autonuma_sched_smt() &&
+				    !this_smt_idle && other_smt_idle) {
+					/* NUMA affinity override */
+					weight_others[cpu] = -2;
+					continue;
+				}
+
 				if (weight_current[nid] >
 				    weight_current[cpu_nid] &&
 				    weight_current_mm[nid] >
@@ -115,6 +154,11 @@ void sched_autonuma_balance(void)
 					weight_others[cpu] = -1;
 				continue;
 			}
+
+			if (autonuma_sched_smt() &&
+			    this_smt_idle && cpu_rq(this_cpu)->nr_running <= 1)
+				continue;
+
 			mm = rq->curr->mm;
 			if (!mm)
 				continue;
@@ -169,7 +213,7 @@ void sched_autonuma_balance(void)
 				w_cpu_nid = weight_current_mm[cpu_nid];
 			}
 			if (w_nid > weight_others[cpu] &&
-			    w_nid > w_cpu_nid) {
+			    (w_nid > w_cpu_nid || weight_others[cpu] == -2)) {
 				weight = w_nid -
 					weight_others[cpu] +
 					w_nid -

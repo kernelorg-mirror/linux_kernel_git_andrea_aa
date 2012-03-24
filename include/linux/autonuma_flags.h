@@ -8,6 +8,7 @@ enum autonuma_flag {
 	AUTONUMA_SCHED_LOAD_BALANCE_STRICT_FLAG,
 	AUTONUMA_SCHED_CLONE_RESET_FLAG,
 	AUTONUMA_SCHED_FORK_RESET_FLAG,
+	AUTONUMA_SCHED_SMT_FLAG,
 	AUTONUMA_SCAN_PMD_FLAG,
 	AUTONUMA_SCAN_USE_WORKING_SET_FLAG,
 	AUTONUMA_MIGRATE_DEFER_FLAG,
@@ -41,6 +42,15 @@ static bool inline autonuma_sched_fork_reset(void)
 {
 	return !!test_bit(AUTONUMA_SCHED_FORK_RESET_FLAG,
 			  &autonuma_flags);
+}
+
+static bool inline autonuma_sched_smt(void)
+{
+#ifdef CONFIG_SCHED_SMT
+	return !!test_bit(AUTONUMA_SCHED_SMT_FLAG, &autonuma_flags);
+#else
+	return 0;
+#endif
 }
 
 static bool inline autonuma_scan_pmd(void)
