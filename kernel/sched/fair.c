@@ -2619,11 +2619,11 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
 
 	/* Traverse only the allowed CPUs */
 	for_each_cpu_and(i, sched_group_cpus(group), tsk_cpus_allowed(p)) {
-		if (task_autonuma_cpu(p, i))
-			continue;
 		load = weighted_cpuload(i);
 
 		if (load < min_load || (load == min_load && i == this_cpu)) {
+			if (!task_autonuma_cpu(p, i))
+				continue;
 			min_load = load;
 			idlest = i;
 		}
