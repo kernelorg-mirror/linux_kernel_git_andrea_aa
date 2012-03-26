@@ -2642,7 +2642,6 @@ static int select_idle_sibling(struct task_struct *p, int target)
 	struct sched_domain *sd;
 	struct sched_group *sg;
 	int i;
-	bool numa;
 
 	/*
 	 * If the task is going to be woken-up on this cpu and if it is
@@ -2662,8 +2661,6 @@ static int select_idle_sibling(struct task_struct *p, int target)
 	/*
 	 * Otherwise, iterate the domains and find an elegible idle cpu.
 	 */
-	numa = true;
-again:
 	sd = rcu_dereference(per_cpu(sd_llc, target));
 	for_each_lower_domain(sd) {
 		sg = sd->groups;
@@ -2673,21 +2670,25 @@ again:
 				goto next;
 
 			for_each_cpu(i, sched_group_cpus(sg)) {
-				if (!idle_cpu(i) ||
-				    (numa && !task_autonuma_cpu(p, i)))
+				if (!idle_cpu(i))
 					goto next;
 			}
 
-			target = cpumask_first_and(sched_group_cpus(sg),
-					tsk_cpus_allowed(p));
-			goto done;
+			cpu = -1;
+			for_each_cpu_and(i, sched_group_cpus(sg),
+						tsk_cpus_allowed(p)) {
+				/* Find autonuma cpu only in idle group */
+				if (task_autonuma_cpu(p, i)) {
+					target = i;
+					goto done;
+				}
+				if (cpu == -1)
+					cpu = i;
+			}
+			target = cpu;
 next:
 			sg = sg->next;
 		} while (sg != sd->groups);
-	}
-	if (numa) {
-		numa = false;
-		goto again;
 	}
 done:
 	return target;
