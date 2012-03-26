@@ -2792,6 +2792,9 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 		if (new_cpu == -1 || new_cpu == cpu) {
 			/* Now try balancing at a lower domain level of cpu */
 			sd = sd->child;
+			if (new_cpu < 0)
+				/* Return prev_cpu is find_idlest_cpu failed */
+				new_cpu = prev_cpu;
 			continue;
 		}
 
@@ -2810,6 +2813,7 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 unlock:
 	rcu_read_unlock();
 
+	BUG_ON(new_cpu < 0);
 	return new_cpu;
 }
 #endif /* CONFIG_SMP */
