@@ -2808,6 +2808,17 @@ select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
 unlock:
 	rcu_read_unlock();
 
+#ifdef CONFIG_AUTONUMA
+	if (new_cpu < 0)
+		/*
+		 * find_idlest_cpu() may return -1 if
+		 * task_autonuma_cpu() changes all the time, it's very
+		 * unlikely, but we must handle it if it ever happens.
+		 */
+		new_cpu = prev_cpu;
+#endif
+	BUG_ON(new_cpu < 0);
+
 	return new_cpu;
 }
 #endif /* CONFIG_SMP */
