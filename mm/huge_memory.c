@@ -1865,7 +1865,12 @@ static bool __collapse_huge_page_copy(pte_t *pte, struct page *page,
 	bool mknuma = false;
 #ifdef CONFIG_AUTONUMA
 	int autonuma_last_nid = -1;
+	struct page_autonuma *src_page_an, *page_an = NULL;
+
+	if (autonuma_possible())
+		page_an = lookup_page_autonuma(page);
 #endif
+
 	for (_pte = pte; _pte < pte+HPAGE_PMD_NR; _pte++) {
 		pte_t pteval = *_pte;
 		struct page *src_page;
@@ -1877,12 +1882,12 @@ static bool __collapse_huge_page_copy(pte_t *pte, struct page *page,
 			src_page = pte_page(pteval);
 #ifdef CONFIG_AUTONUMA
 			/* pick the first one, better than nothing */
-			if (autonuma_last_nid < 0) {
+			if (autonuma_possible() && autonuma_last_nid < 0) {
+				src_page_an = lookup_page_autonuma(src_page);
 				autonuma_last_nid =
-					ACCESS_ONCE(src_page->
-						    autonuma_last_nid);
+					ACCESS_ONCE(src_page_an->autonuma_last_nid);
 				if (autonuma_last_nid >= 0)
-					ACCESS_ONCE(page->autonuma_last_nid) =
+					ACCESS_ONCE(page_an->autonuma_last_nid) =
 						autonuma_last_nid;
 			}
 #endif

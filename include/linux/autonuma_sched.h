@@ -45,11 +45,6 @@ static bool inline task_autonuma_cpu(struct task_struct *p, int cpu)
 }
 
 static inline void sched_autonuma_balance(void) {}
-
-static inline bool autonuma_possible(void)
-{
-	return false;
-}
 #endif /* CONFIG_AUTONUMA */
 
 #endif /* _LINUX_AUTONUMA_SCHED_H */

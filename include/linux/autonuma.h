@@ -7,15 +7,26 @@
 
 extern void autonuma_enter(struct mm_struct *mm);
 extern void autonuma_exit(struct mm_struct *mm);
-extern void __autonuma_migrate_page_remove(struct page *page);
+extern void __autonuma_migrate_page_remove(struct page *,
+					   struct page_autonuma *);
 extern void autonuma_migrate_split_huge_page(struct page *page,
 					     struct page *page_tail);
 extern void autonuma_setup_new_exec(struct task_struct *p);
+extern struct page_autonuma *lookup_page_autonuma(struct page *page);
 
 static inline void autonuma_migrate_page_remove(struct page *page)
 {
-	if (ACCESS_ONCE(page->autonuma_migrate_nid) >= 0)
-		__autonuma_migrate_page_remove(page);
+	struct page_autonuma *page_autonuma = lookup_page_autonuma(page);
+	if (ACCESS_ONCE(page_autonuma->autonuma_migrate_nid) >= 0)
+		__autonuma_migrate_page_remove(page, page_autonuma);
+}
+
+static inline void autonuma_free_page(struct page *page)
+{
+	if (autonuma_possible()) {
+		autonuma_migrate_page_remove(page);
+		lookup_page_autonuma(page)->autonuma_last_nid = -1;
+	}
 }
 
 #define autonuma_printk(format, args...) \
@@ -29,6 +40,7 @@ static inline void autonuma_migrate_page_remove(struct page *page) {}
 static inline void autonuma_migrate_split_huge_page(struct page *page,
 						    struct page *page_tail) {}
 static inline void autonuma_setup_new_exec(struct task_struct *p) {}
+static inline void autonuma_free_page(struct page *page) {}
 
 #endif /* CONFIG_AUTONUMA */
 
