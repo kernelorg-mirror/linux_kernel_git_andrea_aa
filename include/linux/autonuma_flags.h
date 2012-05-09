@@ -3,7 +3,7 @@
 
 /*
  * If CONFIG_AUTONUMA=n this file isn't included and only
- * autonuma_possible() is defined (as false) in autonuma_sched.h to
+ * autonuma_possible() is defined (as false) in page_autonuma.h to
  * allow optimizing away at compile time blocks of common code without
  * using #ifdefs.
  */
