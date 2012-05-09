@@ -78,6 +78,61 @@ struct task_autonuma {
 	/* do not add more variables here, the above array size is dynamic */
 };
 
+/*
+ * Per page (or per-pageblock) structure dynamically allocated only if
+ * autonuma is possible.
+ */
+struct page_autonuma {
+	/*
+	 * To modify autonuma_last_nid locklessly, the architecture
+	 * needs to have SMP atomic granularity < sizeof(long). Not
+	 * all architectures have this, notably some ancient Alphas
+	 * (but none of them should run in NUMA
+	 * systems). Architectures without this granularity require
+	 * autonuma_last_nid to be a long.
+	 */
+#ifdef CONFIG_64BIT
+	/*
+	 * If autonuma_migrate_nid is >= 0, it means the page_autonuma
+	 * structure is linked into one of the NUMA node's migrate
+	 * lists. Which list is determined by the NUMA node the page
+	 * belongs to. If autonuma_migrate_nid is -1, the
+	 * page_autonuma structure is not linked into any NUMA node's
+	 * migrate list.
+	 */
+	int autonuma_migrate_nid;
+	/*
+	 * autonuma_last_nid records the NUMA node that accessed the
+	 * page during the last NUMA hinting page fault. If a
+	 * different node accesses the page next, AutoNUMA will not
+	 * migrate the page. This tries to avoid page thrashing by
+	 * requiring that a page be accessed by the same node twice in
+	 * a row before it is queued for migration.
+	 */
+	int autonuma_last_nid;
+#else
+#if MAX_NUMNODES > 32767
+#error "too many nodes"
+#endif
+	short autonuma_migrate_nid;
+	short autonuma_last_nid;
+#endif
+	/*
+	 * This is the list node that links the page (referenced by
+	 * the page_autonuma structure) in the
+	 * &NODE_DATA(dst_nid)->autonuma_migrate_head[page_nid] lru.
+	 */
+	struct list_head autonuma_migrate_node;
+
+	/*
+	 * To find the page starting from the autonuma_migrate_node we
+	 * need a backlink.
+	 *
+	 * FIXME: drop it;
+	 */
+	struct page *page;
+};
+
 extern int alloc_task_autonuma(struct task_struct *tsk,
 			       struct task_struct *orig,
 			       int node);
