@@ -15,6 +15,12 @@ enum autonuma_flag {
 
 extern unsigned long autonuma_flags;
 
+static inline bool autonuma_impossible(void)
+{
+	return num_possible_nodes() <= 1 ||
+		test_bit(AUTONUMA_IMPOSSIBLE, &autonuma_flags);
+}
+
 static bool inline autonuma_enabled(void)
 {
 	return !!test_bit(AUTONUMA_FLAG, &autonuma_flags);

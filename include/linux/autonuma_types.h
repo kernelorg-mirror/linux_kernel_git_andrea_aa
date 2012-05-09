@@ -28,6 +28,37 @@ struct sched_autonuma {
 	unsigned long numa_fault[0];
 };
 
+struct page_autonuma {
+	/*
+	 * FIXME: move to pgdat section along with the memcg and allocate
+	 * at runtime only in presence of a numa system.
+	 */
+	/*
+	 * To modify autonuma_last_nid lockless the architecture,
+	 * needs SMP atomic granularity < sizeof(long), not all archs
+	 * have that, notably some alpha. Archs without that requires
+	 * autonuma_last_nid to be a long.
+	 */
+#if BITS_PER_LONG > 32
+	int autonuma_migrate_nid;
+	int autonuma_last_nid;
+#else
+#if MAX_NUMNODES >= 32768
+#error "too many nodes"
+#endif
+	/* FIXME: remember to check the updates are atomic */
+	short autonuma_migrate_nid;
+	short autonuma_last_nid;
+#endif
+	struct list_head autonuma_migrate_node;
+
+	/*
+	 * To find the page starting from the autonuma_migrate_node we
+	 * need a backlink.
+	 */
+	struct page *page;
+};
+
 extern int alloc_sched_autonuma(struct task_struct *tsk,
 				struct task_struct *orig,
 				int node);

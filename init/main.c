@@ -68,6 +68,7 @@
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
+#include <linux/page_autonuma.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -455,6 +456,7 @@ static void __init mm_init(void)
 	 * bigger than MAX_ORDER unless SPARSEMEM.
 	 */
 	page_cgroup_init_flatmem();
+	page_autonuma_init_flatmem();
 	mem_init();
 	kmem_cache_init();
 	percpu_init_late();

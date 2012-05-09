@@ -51,12 +51,6 @@ static struct knumad_scan {
 	.mm_head = LIST_HEAD_INIT(knumad_scan.mm_head),
 };
 
-static inline bool autonuma_impossible(void)
-{
-	return num_possible_nodes() <= 1 ||
-		test_bit(AUTONUMA_IMPOSSIBLE, &autonuma_flags);
-}
-
 static inline void autonuma_migrate_lock(int nid)
 {
 	spin_lock(&NODE_DATA(nid)->autonuma_lock);
@@ -82,51 +76,57 @@ void autonuma_migrate_split_huge_page(struct page *page,
 				      struct page *page_tail)
 {
 	int nid, last_nid;
+	struct page_autonuma *page_autonuma, *page_tail_autonuma;
 
-	nid = page->autonuma_migrate_nid;
+	page_autonuma = lookup_page_autonuma(page);
+	page_tail_autonuma = lookup_page_autonuma(page_tail);
+
+	nid = page_autonuma->autonuma_migrate_nid;
 	VM_BUG_ON(nid >= MAX_NUMNODES);
 	VM_BUG_ON(nid < -1);
-	VM_BUG_ON(page_tail->autonuma_migrate_nid != -1);
+	VM_BUG_ON(page_tail_autonuma->autonuma_migrate_nid != -1);
 	if (nid >= 0) {
 		VM_BUG_ON(page_to_nid(page) != page_to_nid(page_tail));
 		autonuma_migrate_lock(nid);
-		list_add_tail(&page_tail->autonuma_migrate_node,
-			      &page->autonuma_migrate_node);
+		list_add_tail(&page_tail_autonuma->autonuma_migrate_node,
+			      &page_autonuma->autonuma_migrate_node);
 		autonuma_migrate_unlock(nid);
 
-		page_tail->autonuma_migrate_nid = nid;
+		page_tail_autonuma->autonuma_migrate_nid = nid;
 	}
 
-	last_nid = ACCESS_ONCE(page->autonuma_last_nid);
+	last_nid = ACCESS_ONCE(page_autonuma->autonuma_last_nid);
 	if (last_nid >= 0)
-		page_tail->autonuma_last_nid = last_nid;
+		page_tail_autonuma->autonuma_last_nid = last_nid;
 }
 
-void __autonuma_migrate_page_remove(struct page *page)
+void __autonuma_migrate_page_remove(struct page *page,
+				    struct page_autonuma *page_autonuma)
 {
 	unsigned long flags;
 	int nid;
 
 	flags = compound_lock_irqsave(page);
 
-	nid = page->autonuma_migrate_nid;
+	nid = page_autonuma->autonuma_migrate_nid;
 	VM_BUG_ON(nid >= MAX_NUMNODES);
 	VM_BUG_ON(nid < -1);
 	if (nid >= 0) {
 		int numpages = hpage_nr_pages(page);
 		autonuma_migrate_lock(nid);
-		list_del(&page->autonuma_migrate_node);
+		list_del(&page_autonuma->autonuma_migrate_node);
 		NODE_DATA(nid)->autonuma_nr_migrate_pages -= numpages;
 		autonuma_migrate_unlock(nid);
 
-		page->autonuma_migrate_nid = -1;
+		page_autonuma->autonuma_migrate_nid = -1;
 	}
 
 	compound_unlock_irqrestore(page, flags);
 }
 
-static void __autonuma_migrate_page_add(struct page *page, int dst_nid,
-					int page_nid)
+static void __autonuma_migrate_page_add(struct page *page,
+					struct page_autonuma *page_autonuma,
+					int dst_nid, int page_nid)
 {
 	unsigned long flags;
 	int nid;
@@ -145,25 +145,25 @@ static void __autonuma_migrate_page_add(struct page *page, int dst_nid,
 	flags = compound_lock_irqsave(page);
 
 	numpages = hpage_nr_pages(page);
-	nid = page->autonuma_migrate_nid;
+	nid = page_autonuma->autonuma_migrate_nid;
 	VM_BUG_ON(nid >= MAX_NUMNODES);
 	VM_BUG_ON(nid < -1);
 	if (nid >= 0) {
 		autonuma_migrate_lock(nid);
-		list_del(&page->autonuma_migrate_node);
+		list_del(&page_autonuma->autonuma_migrate_node);
 		NODE_DATA(nid)->autonuma_nr_migrate_pages -= numpages;
 		autonuma_migrate_unlock(nid);
 	}
 
 	autonuma_migrate_lock(dst_nid);
-	list_add(&page->autonuma_migrate_node,
+	list_add(&page_autonuma->autonuma_migrate_node,
 		 &NODE_DATA(dst_nid)->autonuma_migrate_head[page_nid]);
 	NODE_DATA(dst_nid)->autonuma_nr_migrate_pages += numpages;
 	nr_migrate_pages = NODE_DATA(dst_nid)->autonuma_nr_migrate_pages;
 
 	autonuma_migrate_unlock(dst_nid);
 
-	page->autonuma_migrate_nid = dst_nid;
+	page_autonuma->autonuma_migrate_nid = dst_nid;
 
 	compound_unlock_irqrestore(page, flags);
 
@@ -179,9 +179,13 @@ static void __autonuma_migrate_page_add(struct page *page, int dst_nid,
 static void autonuma_migrate_page_add(struct page *page, int dst_nid,
 				      int page_nid)
 {
-	int migrate_nid = ACCESS_ONCE(page->autonuma_migrate_nid);
+	int migrate_nid;
+	struct page_autonuma *page_autonuma = lookup_page_autonuma(page);
+
+	migrate_nid = ACCESS_ONCE(page_autonuma->autonuma_migrate_nid);
 	if (migrate_nid != dst_nid)
-		__autonuma_migrate_page_add(page, dst_nid, page_nid);
+		__autonuma_migrate_page_add(page, page_autonuma,
+					    dst_nid, page_nid);
 }
 
 static bool balance_pgdat(struct pglist_data *pgdat,
@@ -252,23 +256,26 @@ static inline bool last_nid_set(struct task_struct *p,
 				struct page *page, int cpu_nid)
 {
 	bool ret = true;
-	int autonuma_last_nid = ACCESS_ONCE(page->autonuma_last_nid);
+	struct page_autonuma *page_autonuma = lookup_page_autonuma(page);
+	int autonuma_last_nid = ACCESS_ONCE(page_autonuma->autonuma_last_nid);
 	VM_BUG_ON(cpu_nid < 0);
 	VM_BUG_ON(cpu_nid >= MAX_NUMNODES);
 	if (autonuma_last_nid >= 0 && autonuma_last_nid != cpu_nid) {
-		int migrate_nid = ACCESS_ONCE(page->autonuma_migrate_nid);
+		int migrate_nid;
+		migrate_nid = ACCESS_ONCE(page_autonuma->autonuma_migrate_nid);
 		if (migrate_nid >= 0 && migrate_nid != cpu_nid)
-			__autonuma_migrate_page_remove(page);
+			__autonuma_migrate_page_remove(page, page_autonuma);
 		ret = false;
 	}
 	if (autonuma_last_nid != cpu_nid)
-		ACCESS_ONCE(page->autonuma_last_nid) = cpu_nid;
+		ACCESS_ONCE(page_autonuma->autonuma_last_nid) = cpu_nid;
 	return ret;
 }
 
 static int __page_migrate_nid(struct page *page, int page_nid)
 {
-	int migrate_nid = ACCESS_ONCE(page->autonuma_migrate_nid);
+	struct page_autonuma *page_autonuma = lookup_page_autonuma(page);
+	int migrate_nid = ACCESS_ONCE(page_autonuma->autonuma_migrate_nid);
 	if (migrate_nid < 0)
 		migrate_nid = page_nid;
 #if 0
@@ -780,6 +787,7 @@ static int isolate_migratepages(struct list_head *migratepages,
 	for_each_online_node(nid) {
 		struct zone *zone;
 		struct page *page;
+		struct page_autonuma *page_autonuma;
 		cond_resched();
 		VM_BUG_ON(numa_node_id() != pgdat->node_id);
 		if (nid == pgdat->node_id) {
@@ -802,16 +810,17 @@ static int isolate_migratepages(struct list_head *migratepages,
 			autonuma_migrate_unlock_irq(pgdat->node_id);
 			continue;
 		}
-		page = list_entry(heads[nid].prev,
-				  struct page,
-				  autonuma_migrate_node);
+		page_autonuma = list_entry(heads[nid].prev,
+					   struct page_autonuma,
+					   autonuma_migrate_node);
+		page = page_autonuma->page;
 		if (unlikely(!get_page_unless_zero(page))) {
 			/*
 			 * Is getting freed and will remove self from the
 			 * autonuma list shortly, skip it for now.
 			 */
-			list_del(&page->autonuma_migrate_node);
-			list_add(&page->autonuma_migrate_node,
+			list_del(&page_autonuma->autonuma_migrate_node);
+			list_add(&page_autonuma->autonuma_migrate_node,
 				 &heads[nid]);
 			autonuma_migrate_unlock_irq(pgdat->node_id);
 			autonuma_printk("autonuma migrate page is free\n");
@@ -820,7 +829,7 @@ static int isolate_migratepages(struct list_head *migratepages,
 		if (!PageLRU(page)) {
 			autonuma_migrate_unlock_irq(pgdat->node_id);
 			autonuma_printk("autonuma migrate page not in LRU\n");
-			__autonuma_migrate_page_remove(page);
+			__autonuma_migrate_page_remove(page, page_autonuma);
 			put_page(page);
 			continue;
 		}
@@ -832,7 +841,7 @@ static int isolate_migratepages(struct list_head *migratepages,
 			/* FIXME: remove split_huge_page */
 			split_huge_page(page);
 
-		__autonuma_migrate_page_remove(page);
+		__autonuma_migrate_page_remove(page, page_autonuma);
 
 		zone = page_zone(page);
 		spin_lock_irq(&zone->lru_lock);
@@ -875,11 +884,16 @@ static struct page *alloc_migrate_dst_page(struct page *page,
 {
 	int nid = (int) data;
 	struct page *newpage;
+	struct page_autonuma *page_autonuma, *newpage_autonuma;
 	newpage = alloc_pages_exact_node(nid,
 					 GFP_HIGHUSER_MOVABLE | GFP_THISNODE,
 					 0);
-	if (newpage)
-		newpage->autonuma_last_nid = page->autonuma_last_nid;
+	if (newpage) {
+		page_autonuma = lookup_page_autonuma(page);
+		newpage_autonuma = lookup_page_autonuma(newpage);
+		newpage_autonuma->autonuma_last_nid =
+			page_autonuma->autonuma_last_nid;
+	}
 	return newpage;
 }
 
@@ -1299,7 +1313,8 @@ static int __init noautonuma_setup(char *str)
 	}
 	return 1;
 }
-__setup("noautonuma", noautonuma_setup);
+/* early so sparse.c also can see it */
+early_param("noautonuma", noautonuma_setup);
 
 static int __init autonuma_init(void)
 {
