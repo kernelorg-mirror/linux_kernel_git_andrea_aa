@@ -9,6 +9,7 @@
 #include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
+#include <linux/page_autonuma.h>
 #include "internal.h"
 #include <asm/dma.h>
 #include <asm/pgalloc.h>
@@ -230,7 +231,8 @@ struct page *sparse_decode_mem_map(unsigned long coded_mem_map, unsigned long pn
 
 static int __meminit sparse_init_one_section(struct mem_section *ms,
 		unsigned long pnum, struct page *mem_map,
-		unsigned long *pageblock_bitmap)
+		unsigned long *pageblock_bitmap,
+		struct page_autonuma *page_autonuma)
 {
 	if (!present_section(ms))
 		return -EINVAL;
@@ -239,6 +241,14 @@ static int __meminit sparse_init_one_section(struct mem_section *ms,
 	ms->section_mem_map |= sparse_encode_mem_map(mem_map, pnum) |
 							SECTION_HAS_MEM_MAP;
  	ms->pageblock_flags = pageblock_bitmap;
+#ifdef CONFIG_AUTONUMA
+	if (page_autonuma) {
+		ms->section_page_autonuma = page_autonuma - section_nr_to_pfn(pnum);
+		page_autonuma_map_init(mem_map, page_autonuma, PAGES_PER_SECTION);
+	}
+#else
+	BUG_ON(page_autonuma);
+#endif
 
 	return 1;
 }
@@ -480,6 +490,9 @@ void __init sparse_init(void)
 	int size2;
 	struct page **map_map;
 #endif
+	struct page_autonuma **uninitialized_var(page_autonuma_map);
+	struct page_autonuma *page_autonuma;
+	int size3;
 
 	/* Setup pageblock_order for HUGETLB_PAGE_SIZE_VARIABLE */
 	set_pageblock_order();
@@ -577,6 +590,63 @@ void __init sparse_init(void)
 					 map_count, nodeid_begin);
 #endif
 
+	/* __pgdat_autonuma_init initialized autonuma_possible() */
+	if (autonuma_possible()) {
+		unsigned long total_page_autonuma;
+		unsigned long page_autonuma_count;
+
+		size3 = sizeof(struct page_autonuma *) * NR_MEM_SECTIONS;
+		page_autonuma_map = alloc_bootmem(size3);
+		if (!page_autonuma_map)
+			panic("can not allocate page_autonuma_map\n");
+
+		for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
+			struct mem_section *ms;
+
+			if (!present_section_nr(pnum))
+				continue;
+			ms = __nr_to_section(pnum);
+			nodeid_begin = sparse_early_nid(ms);
+			pnum_begin = pnum;
+			break;
+		}
+		total_page_autonuma = 0;
+		page_autonuma_count = 1;
+		for (pnum = pnum_begin + 1; pnum < NR_MEM_SECTIONS; pnum++) {
+			struct mem_section *ms;
+			int nodeid;
+
+			if (!present_section_nr(pnum))
+				continue;
+			ms = __nr_to_section(pnum);
+			nodeid = sparse_early_nid(ms);
+			if (nodeid == nodeid_begin) {
+				page_autonuma_count++;
+				continue;
+			}
+			/* ok, we need to take cake of from pnum_begin to pnum - 1*/
+			sparse_early_page_autonuma_alloc_node(page_autonuma_map,
+							      pnum_begin,
+							      NR_MEM_SECTIONS,
+							      page_autonuma_count,
+							      nodeid_begin);
+			total_page_autonuma += SECTION_PAGE_AUTONUMA_SIZE * page_autonuma_count;
+			/* new start, update count etc*/
+			nodeid_begin = nodeid;
+			pnum_begin = pnum;
+			page_autonuma_count = 1;
+		}
+		/* ok, last chunk */
+		sparse_early_page_autonuma_alloc_node(page_autonuma_map, pnum_begin,
+						      NR_MEM_SECTIONS,
+						      page_autonuma_count, nodeid_begin);
+		total_page_autonuma += SECTION_PAGE_AUTONUMA_SIZE * page_autonuma_count;
+		printk("allocated %lu KBytes of page_autonuma\n",
+		       total_page_autonuma >> 10);
+		printk(KERN_INFO "please try the 'noautonuma' option if you"
+		       " don't want to allocate page_autonuma memory\n");
+	}
+
 	for (pnum = 0; pnum < NR_MEM_SECTIONS; pnum++) {
 		if (!present_section_nr(pnum))
 			continue;
@@ -584,6 +654,13 @@ void __init sparse_init(void)
 		usemap = usemap_map[pnum];
 		if (!usemap)
 			continue;
+
+		if (autonuma_possible()) {
+			page_autonuma = page_autonuma_map[pnum];
+			if (!page_autonuma)
+				continue;
+		} else
+			page_autonuma = NULL;
 
 #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
 		map = map_map[pnum];
@@ -594,11 +671,13 @@ void __init sparse_init(void)
 			continue;
 
 		sparse_init_one_section(__nr_to_section(pnum), pnum, map,
-								usemap);
+					usemap, page_autonuma);
 	}
 
 	vmemmap_populate_print_last();
 
+	if (autonuma_possible())
+		free_bootmem(__pa(page_autonuma_map), size3);
 #ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
 	free_bootmem(__pa(map_map), size2);
 #endif
@@ -685,7 +764,8 @@ static void free_map_bootmem(struct page *page, unsigned long nr_pages)
 }
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-static void free_section_usemap(struct page *memmap, unsigned long *usemap)
+static void free_section_usemap(struct page *memmap, unsigned long *usemap,
+				struct page_autonuma *page_autonuma)
 {
 	struct page *usemap_page;
 	unsigned long nr_pages;
@@ -699,8 +779,14 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
 	 */
 	if (PageSlab(usemap_page)) {
 		kfree(usemap);
-		if (memmap)
+		if (memmap) {
 			__kfree_section_memmap(memmap, PAGES_PER_SECTION);
+			if (autonuma_possible())
+				__kfree_section_page_autonuma(page_autonuma,
+							      PAGES_PER_SECTION);
+			else
+				BUG_ON(page_autonuma);
+		}
 		return;
 	}
 
@@ -717,6 +803,13 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap)
 			>> PAGE_SHIFT;
 
 		free_map_bootmem(memmap_page, nr_pages);
+
+		if (autonuma_possible()) {
+			struct page *page_autonuma_page;
+			page_autonuma_page = virt_to_page(page_autonuma);
+			free_map_bootmem(page_autonuma_page, nr_pages);
+		} else
+			BUG_ON(page_autonuma);
 	}
 }
 
@@ -732,6 +825,7 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	struct mem_section *ms;
 	struct page *memmap;
+	struct page_autonuma *page_autonuma;
 	unsigned long *usemap;
 	unsigned long flags;
 	int ret;
@@ -751,6 +845,16 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 		__kfree_section_memmap(memmap, nr_pages);
 		return -ENOMEM;
 	}
+	if (autonuma_possible()) {
+		page_autonuma = __kmalloc_section_page_autonuma(pgdat->node_id,
+								nr_pages);
+		if (!page_autonuma) {
+			kfree(usemap);
+			__kfree_section_memmap(memmap, nr_pages);
+			return -ENOMEM;
+		}
+	} else
+		page_autonuma = NULL;
 
 	pgdat_resize_lock(pgdat, &flags);
 
@@ -762,11 +866,16 @@ int __meminit sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
 
 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
 
-	ret = sparse_init_one_section(ms, section_nr, memmap, usemap);
+	ret = sparse_init_one_section(ms, section_nr, memmap, usemap,
+				      page_autonuma);
 
 out:
 	pgdat_resize_unlock(pgdat, &flags);
 	if (ret <= 0) {
+		if (autonuma_possible())
+			__kfree_section_page_autonuma(page_autonuma, nr_pages);
+		else
+			BUG_ON(page_autonuma);
 		kfree(usemap);
 		__kfree_section_memmap(memmap, nr_pages);
 	}
@@ -777,6 +886,7 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
 {
 	struct page *memmap = NULL;
 	unsigned long *usemap = NULL;
+	struct page_autonuma *page_autonuma = NULL;
 
 	if (ms->section_mem_map) {
 		usemap = ms->pageblock_flags;
@@ -784,8 +894,12 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms)
 						__section_nr(ms));
 		ms->section_mem_map = 0;
 		ms->pageblock_flags = NULL;
+
+#ifdef CONFIG_AUTONUMA
+		page_autonuma = ms->section_page_autonuma;
+#endif
 	}
 
-	free_section_usemap(memmap, usemap);
+	free_section_usemap(memmap, usemap, page_autonuma);
 }
 #endif
