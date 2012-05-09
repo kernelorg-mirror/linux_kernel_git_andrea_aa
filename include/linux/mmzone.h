@@ -710,6 +710,9 @@ typedef struct pglist_data {
 	int kswapd_max_order;
 	enum zone_type classzone_idx;
 #ifdef CONFIG_AUTONUMA
+#if !defined(CONFIG_SPARSEMEM)
+	struct page_autonuma *node_page_autonuma;
+#endif
 	/*
 	 * Lock serializing the per destination node AutoNUMA memory
 	 * migration rate limiting data.
@@ -1081,6 +1084,15 @@ struct mem_section {
 	 * section. (see memcontrol.h/page_cgroup.h about this.)
 	 */
 	struct page_cgroup *page_cgroup;
+#endif
+#ifdef CONFIG_AUTONUMA
+	/*
+	 * If !SPARSEMEM, pgdat doesn't have page_autonuma pointer. We use
+	 * section.
+	 */
+	struct page_autonuma *section_page_autonuma;
+#endif
+#if defined(CONFIG_MEMCG) ^ defined(CONFIG_AUTONUMA)
 	unsigned long pad;
 #endif
 };

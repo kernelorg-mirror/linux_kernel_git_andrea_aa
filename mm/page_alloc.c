@@ -59,6 +59,7 @@
 #include <linux/migrate.h>
 #include <linux/page-debug-flags.h>
 #include <linux/autonuma.h>
+#include <linux/page_autonuma.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -619,9 +620,7 @@ static inline int free_pages_check(struct page *page)
 		bad_page(page);
 		return 1;
 	}
-#ifdef CONFIG_AUTONUMA
-	page->autonuma_last_nid = -1;
-#endif
+	autonuma_free_page(page);
 	if (page->flags & PAGE_FLAGS_CHECK_AT_PREP)
 		page->flags &= ~PAGE_FLAGS_CHECK_AT_PREP;
 	return 0;
@@ -3797,9 +3796,6 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
 			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
 
 		INIT_LIST_HEAD(&page->lru);
-#ifdef CONFIG_AUTONUMA
-		page->autonuma_last_nid = -1;
-#endif
 #ifdef WANT_PAGE_VIRTUAL
 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
 		if (!is_highmem_idx(zone))
@@ -4402,14 +4398,10 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 	int ret;
 
 	pgdat_resize_init(pgdat);
-#ifdef CONFIG_AUTONUMA
-	spin_lock_init(&pgdat->autonuma_migrate_lock);
-	pgdat->autonuma_migrate_nr_pages = 0;
-	pgdat->autonuma_migrate_last_jiffies = jiffies;
-#endif
 	init_waitqueue_head(&pgdat->kswapd_wait);
 	init_waitqueue_head(&pgdat->pfmemalloc_wait);
 	pgdat_page_cgroup_init(pgdat);
+	pgdat_autonuma_init(pgdat);
 
 	for (j = 0; j < MAX_NR_ZONES; j++) {
 		struct zone *zone = pgdat->node_zones + j;
