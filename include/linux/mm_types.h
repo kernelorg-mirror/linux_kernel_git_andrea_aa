@@ -152,17 +152,6 @@ struct page {
 		struct page *first_page;	/* Compound tail pages */
 	};
 
-#ifdef CONFIG_AUTONUMA
-	/*
-	 * FIXME: move to pgdat section along with the memcg and allocate
-	 * at runtime only in presence of a numa system.
-	 */
-#if MAX_NUMNODES > 32767
-#error "too many nodes"
-#endif
-	short autonuma_last_nid;
-#endif
-
 	/*
 	 * On machines where all RAM is mapped into kernel address space,
 	 * we can simply calculate the virtual address. On machines with

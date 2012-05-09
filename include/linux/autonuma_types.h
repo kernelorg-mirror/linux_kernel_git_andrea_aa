@@ -78,6 +78,25 @@ struct task_autonuma {
 	/* do not add more variables here, the above array size is dynamic */
 };
 
+/*
+ * Per page (or per-pageblock) structure dynamically allocated only if
+ * autonuma is possible.
+ */
+struct page_autonuma {
+	/*
+	 * autonuma_last_nid records the NUMA node that accessed the
+	 * page during the last NUMA hinting page fault. If a
+	 * different node accesses the page next, AutoNUMA will not
+	 * migrate the page. This tries to avoid page thrashing by
+	 * requiring that a page be accessed by the same node twice in
+	 * a row before it is queued for migration.
+	 */
+#if MAX_NUMNODES > 32767
+#error "too many nodes"
+#endif
+	short autonuma_last_nid;
+};
+
 extern int alloc_task_autonuma(struct task_struct *tsk,
 			       struct task_struct *orig,
 			       int node);

@@ -55,10 +55,19 @@ void autonuma_migrate_split_huge_page(struct page *page,
 				      struct page *page_tail)
 {
 	int last_nid;
+	struct page_autonuma *page_autonuma, *page_tail_autonuma;
 
-	last_nid = ACCESS_ONCE(page->autonuma_last_nid);
+	if (!autonuma_possible())
+		return;
+
+	page_autonuma = lookup_page_autonuma(page);
+	page_tail_autonuma = lookup_page_autonuma(page_tail);
+
+	VM_BUG_ON(page_tail_autonuma->autonuma_last_nid != -1);
+
+	last_nid = ACCESS_ONCE(page_autonuma->autonuma_last_nid);
 	if (last_nid >= 0)
-		page_tail->autonuma_last_nid = last_nid;
+		page_tail_autonuma->autonuma_last_nid = last_nid;
 }
 
 static int sync_isolate_migratepages(struct list_head *migratepages,
@@ -176,13 +185,18 @@ static struct page *alloc_migrate_dst_page(struct page *page,
 {
 	int nid = (int) data;
 	struct page *newpage;
+	struct page_autonuma *page_autonuma, *newpage_autonuma;
 	newpage = alloc_pages_exact_node(nid,
 					 (GFP_HIGHUSER_MOVABLE | GFP_THISNODE |
 					  __GFP_NOMEMALLOC | __GFP_NORETRY |
 					  __GFP_NOWARN | __GFP_NO_KSWAPD) &
 					 ~GFP_IOFS, 0);
-	if (newpage)
-		newpage->autonuma_last_nid = page->autonuma_last_nid;
+	if (newpage) {
+		page_autonuma = lookup_page_autonuma(page);
+		newpage_autonuma = lookup_page_autonuma(newpage);
+		newpage_autonuma->autonuma_last_nid =
+			page_autonuma->autonuma_last_nid;
+	}
 	return newpage;
 }
 
@@ -291,13 +305,14 @@ static void numa_hinting_fault_cpu_follow_memory(struct task_struct *p,
 static inline bool last_nid_set(struct page *page, int this_nid)
 {
 	bool ret = true;
-	int autonuma_last_nid = ACCESS_ONCE(page->autonuma_last_nid);
+	struct page_autonuma *page_autonuma = lookup_page_autonuma(page);
+	int autonuma_last_nid = ACCESS_ONCE(page_autonuma->autonuma_last_nid);
 	VM_BUG_ON(this_nid < 0);
 	VM_BUG_ON(this_nid >= MAX_NUMNODES);
 	if (autonuma_last_nid != this_nid) {
 		if (autonuma_last_nid >= 0)
 			ret = false;
-		ACCESS_ONCE(page->autonuma_last_nid) = this_nid;
+		ACCESS_ONCE(page_autonuma->autonuma_last_nid) = this_nid;
 	}
 	return ret;
 }
@@ -1185,7 +1200,8 @@ static int __init noautonuma_setup(char *str)
 	}
 	return 1;
 }
-__setup("noautonuma", noautonuma_setup);
+/* early so sparse.c also can see it */
+early_param("noautonuma", noautonuma_setup);
 
 static bool autonuma_init_checks_failed(void)
 {
@@ -1209,7 +1225,12 @@ static int __init autonuma_init(void)
 
 	VM_BUG_ON(num_possible_nodes() < 1);
 	if (num_possible_nodes() <= 1 || !autonuma_possible()) {
-		clear_bit(AUTONUMA_POSSIBLE_FLAG, &autonuma_flags);
+		/* should have been already initialized by page_autonuma */
+		if (autonuma_possible()) {
+			WARN_ON(1);
+			/* try to fixup if it wasn't ok */
+			clear_bit(AUTONUMA_POSSIBLE_FLAG, &autonuma_flags);
+		}
 		return -EINVAL;
 	} else if (autonuma_init_checks_failed()) {
 		printk("autonuma disengaged: init checks failed\n");

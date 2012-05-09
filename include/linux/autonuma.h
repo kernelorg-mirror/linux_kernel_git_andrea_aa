@@ -10,6 +10,13 @@ extern void autonuma_exit(struct mm_struct *mm);
 extern void autonuma_migrate_split_huge_page(struct page *page,
 					     struct page *page_tail);
 extern void autonuma_setup_new_exec(struct task_struct *p);
+extern struct page_autonuma *lookup_page_autonuma(struct page *page);
+
+static inline void autonuma_free_page(struct page *page)
+{
+	if (autonuma_possible())
+		lookup_page_autonuma(page)->autonuma_last_nid = -1;
+}
 
 #define autonuma_printk(format, args...) \
 	if (autonuma_debug()) printk(format, ##args)
@@ -21,6 +28,7 @@ static inline void autonuma_exit(struct mm_struct *mm) {}
 static inline void autonuma_migrate_split_huge_page(struct page *page,
 						    struct page *page_tail) {}
 static inline void autonuma_setup_new_exec(struct task_struct *p) {}
+static inline void autonuma_free_page(struct page *page) {}
 
 #endif /* CONFIG_AUTONUMA */
 
