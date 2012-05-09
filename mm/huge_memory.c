@@ -1831,6 +1831,13 @@ static bool __collapse_huge_page_copy(pte_t *pte, struct page *page,
 {
 	pte_t *_pte;
 	bool mknuma = false;
+#ifdef CONFIG_AUTONUMA
+	struct page_autonuma *src_page_an, *page_an = NULL;
+
+	if (!autonuma_impossible())
+		page_an = lookup_page_autonuma(page);
+#endif
+
 	for (_pte = pte; _pte < pte+HPAGE_PMD_NR; _pte++) {
 		pte_t pteval = *_pte;
 		struct page *src_page;
@@ -1839,17 +1846,18 @@ static bool __collapse_huge_page_copy(pte_t *pte, struct page *page,
 			clear_user_highpage(page, address);
 			add_mm_counter(vma->vm_mm, MM_ANONPAGES, 1);
 		} else {
-#ifdef CONFIG_AUTONUMA
-			int autonuma_last_nid;
-#endif
 			src_page = pte_page(pteval);
 #ifdef CONFIG_AUTONUMA
-			/* pick the last one, better than nothing */
-			autonuma_last_nid =
-				ACCESS_ONCE(src_page->autonuma_last_nid);
-			if (autonuma_last_nid >= 0)
-				ACCESS_ONCE(page->autonuma_last_nid) =
-					autonuma_last_nid;
+			if (!autonuma_impossible()) {
+				int autonuma_last_nid;
+				src_page_an = lookup_page_autonuma(src_page);
+				/* pick the last one, better than nothing */
+				autonuma_last_nid =
+					ACCESS_ONCE(src_page_an->autonuma_last_nid);
+				if (autonuma_last_nid >= 0)
+					ACCESS_ONCE(page_an->autonuma_last_nid) =
+						autonuma_last_nid;
+			}
 #endif
 			copy_user_highpage(page, src_page, address, vma);
 			VM_BUG_ON(page_mapcount(src_page) != 1);
