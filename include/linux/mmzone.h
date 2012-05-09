@@ -710,12 +710,9 @@ typedef struct pglist_data {
 	int kswapd_max_order;
 	enum zone_type classzone_idx;
 #ifdef CONFIG_AUTONUMA
-	/*
-	 * lock serializing all lists with heads in the
-	 * autonuma_migrate_head[] array, and the
-	 * autonuma_nr_migrate_pages field.
-	 */
-	spinlock_t autonuma_lock;
+#if !defined(CONFIG_SPARSEMEM)
+	struct page_autonuma *node_page_autonuma;
+#endif
 	/*
 	 * All pages from node "page_nid" to be migrated to this node,
 	 * will be queued into the list
@@ -726,6 +723,12 @@ typedef struct pglist_data {
 	unsigned long autonuma_nr_migrate_pages;
 	/* waitqueue for this node knuma_migrated daemon */
 	wait_queue_head_t autonuma_knuma_migrated_wait;
+	/*
+	 * lock serializing all lists with heads in the
+	 * autonuma_migrate_head[] array, and the
+	 * autonuma_nr_migrate_pages field.
+	 */
+	spinlock_t autonuma_lock;
 #endif
 } pg_data_t;
 
@@ -1088,6 +1091,15 @@ struct mem_section {
 	 * section. (see memcontrol.h/page_cgroup.h about this.)
 	 */
 	struct page_cgroup *page_cgroup;
+#endif
+#ifdef CONFIG_AUTONUMA
+	/*
+	 * If !SPARSEMEM, pgdat doesn't have page_autonuma pointer. We use
+	 * section.
+	 */
+	struct page_autonuma *section_page_autonuma;
+#endif
+#if defined(CONFIG_MEMCG) ^ defined(CONFIG_AUTONUMA)
 	unsigned long pad;
 #endif
 };
