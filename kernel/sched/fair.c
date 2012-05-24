@@ -4893,6 +4893,9 @@ static void run_rebalance_domains(struct softirq_action *h)
 
 	rebalance_domains(this_cpu, idle);
 
+	if (!this_rq->idle_balance)
+		sched_set_autonuma_need_balance();
+
 	/*
 	 * If this cpu has a pending nohz_balance_kick, then do the
 	 * balancing on behalf of the other idle cpus whose ticks are
