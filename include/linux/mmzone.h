@@ -713,12 +713,6 @@ typedef struct pglist_data {
 #if !defined(CONFIG_SPARSEMEM)
 	struct page_autonuma *node_page_autonuma;
 #endif
-	/*
-	 * All pages from node "page_nid" to be migrated to this node,
-	 * will be queued into the list
-	 * autonuma_migrate_head[page_nid].
-	 */
-	struct list_head autonuma_migrate_head[MAX_NUMNODES];
 	/* number of pages from other nodes queued for migration to this node */
 	unsigned long autonuma_nr_migrate_pages;
 	/* waitqueue for this node knuma_migrated daemon */
@@ -729,7 +723,20 @@ typedef struct pglist_data {
 	 * autonuma_nr_migrate_pages field.
 	 */
 	spinlock_t autonuma_lock;
+	/*
+	 * All pages from node "page_nid" to be migrated to this node,
+	 * will be queued into the list
+	 * autonuma_migrate_head[page_nid].
+	 *
+	 * Arches supporting AutoNUMA must allocate the pgdat
+	 * structure using the size returned from the
+	 * autonuma_pglist_data_size() function after including
+	 * <linux/page_autonuma.h>. The below field must remain the
+	 * last one of this structure.
+	 */
+	struct list_head autonuma_migrate_head[0];
 #endif
+	/* do not add more variables here, the above array size is dynamic */
 } pg_data_t;
 
 #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)

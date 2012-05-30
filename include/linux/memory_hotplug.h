@@ -5,6 +5,7 @@
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
 #include <linux/bug.h>
+#include <linux/page_autonuma.h>
 
 struct page;
 struct zone;
@@ -130,7 +131,7 @@ extern void arch_refresh_nodedata(int nid, pg_data_t *pgdat);
  */
 #define generic_alloc_nodedata(nid)				\
 ({								\
-	kzalloc(sizeof(pg_data_t), GFP_KERNEL);			\
+	kzalloc(autonuma_pglist_data_size(), GFP_KERNEL);	\
 })
 /*
  * This definition is just for error path in node hotadd.

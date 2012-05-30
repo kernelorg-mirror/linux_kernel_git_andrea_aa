@@ -161,7 +161,7 @@ void register_page_bootmem_info_node(struct pglist_data *pgdat)
 	struct page *page;
 	struct zone *zone;
 
-	nr_pages = PAGE_ALIGN(sizeof(struct pglist_data)) >> PAGE_SHIFT;
+	nr_pages = PAGE_ALIGN(autonuma_pglist_data_size()) >> PAGE_SHIFT;
 	page = virt_to_page(pgdat);
 
 	for (i = 0; i < nr_pages; i++, page++)
