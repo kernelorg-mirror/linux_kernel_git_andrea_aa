@@ -23,8 +23,9 @@ static void __meminit __pgdat_autonuma_init(struct pglist_data *pgdat)
 	spin_lock_init(&pgdat->autonuma_lock);
 	init_waitqueue_head(&pgdat->autonuma_knuma_migrated_wait);
 	pgdat->autonuma_nr_migrate_pages = 0;
-	for_each_node(node_iter)
-		INIT_LIST_HEAD(&pgdat->autonuma_migrate_head[node_iter]);
+	if (!autonuma_impossible())
+		for_each_node(node_iter)
+			INIT_LIST_HEAD(&pgdat->autonuma_migrate_head[node_iter]);
 }
 
 #if !defined(CONFIG_SPARSEMEM)
