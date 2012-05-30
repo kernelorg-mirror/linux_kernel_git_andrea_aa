@@ -10,6 +10,7 @@ static inline void __init page_autonuma_init_flatmem(void) {}
 #ifdef CONFIG_AUTONUMA
 
 #include <linux/autonuma_flags.h>
+#include <linux/autonuma_types.h>
 
 extern void __meminit page_autonuma_map_init(struct page *page,
 					     struct page_autonuma *page_autonuma,
@@ -51,5 +52,11 @@ extern void __init sparse_early_page_autonuma_alloc_node(struct page_autonuma **
 							 unsigned long map_count,
 							 int nodeid);
 #endif
+
+/* inline won't work here */
+#define autonuma_pglist_data_size() (sizeof(struct pglist_data) +	\
+				     (autonuma_possible() ?		\
+				      sizeof(struct list_head) * \
+				      nr_node_ids : 0))
 
 #endif /* _LINUX_PAGE_AUTONUMA_H */
