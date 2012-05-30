@@ -25,6 +25,7 @@
 #include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/module.h>
+#include <linux/page_autonuma.h>
 
 #include "numa_internal.h"
 
@@ -194,7 +195,7 @@ void __init init_alloc_remap(int nid, u64 start, u64 end)
 
 	/* calculate the necessary space aligned to large page size */
 	size = node_memmap_size_bytes(nid, start_pfn, end_pfn);
-	size += ALIGN(sizeof(pg_data_t), PAGE_SIZE);
+	size += ALIGN(autonuma_pglist_data_size(), PAGE_SIZE);
 	size = ALIGN(size, LARGE_PAGE_BYTES);
 
 	/* allocate node memory and the lowmem remap area */
