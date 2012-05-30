@@ -701,10 +701,16 @@ typedef struct pglist_data {
 #if !defined(CONFIG_SPARSEMEM)
 	struct page_autonuma *node_page_autonuma;
 #endif
-	struct list_head autonuma_migrate_head[MAX_NUMNODES];
 	unsigned long autonuma_nr_migrate_pages;
 	wait_queue_head_t autonuma_knuma_migrated_wait;
 	spinlock_t autonuma_lock;
+	/*
+	 * Archs supporting AutoNUMA should allocate the pgdat with
+	 * size autonuma_pglist_data_size() after including
+	 * <linux/page_autonuma.h> and the below field must remain the
+	 * last one of this structure.
+	 */
+	struct list_head autonuma_migrate_head[0];
 #endif
 } pg_data_t;
 
