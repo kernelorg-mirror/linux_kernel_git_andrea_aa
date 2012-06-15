@@ -833,7 +833,8 @@ static inline int check_new_page(struct page *page)
 		(page->mapping != NULL)  |
 		(__page_count(page) != 0)  |
 		(page->flags & PAGE_FLAGS_CHECK_AT_PREP) |
-		(mem_cgroup_bad_page_check(page)))) {
+		(mem_cgroup_bad_page_check(page)) |
+		autonuma_check_new_page(page))) {
 		bad_page(page);
 		return 1;
 	}
