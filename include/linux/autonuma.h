@@ -29,6 +29,16 @@ static inline void autonuma_free_page(struct page *page)
 	}
 }
 
+static inline void autonuma_check_new_page(struct page *page)
+{
+	struct page_autonuma *page_autonuma;
+	if (!autonuma_impossible()) {
+		page_autonuma = lookup_page_autonuma(page);
+		BUG_ON(page_autonuma->autonuma_migrate_nid != -1);
+		BUG_ON(page_autonuma->autonuma_last_nid != -1);
+	}
+}
+
 #define autonuma_printk(format, args...) \
 	if (autonuma_debug()) printk(format, ##args)
 
@@ -41,6 +51,7 @@ static inline void autonuma_migrate_split_huge_page(struct page *page,
 						    struct page *page_tail) {}
 static inline void autonuma_setup_new_exec(struct task_struct *p) {}
 static inline void autonuma_free_page(struct page *page) {}
+static inline void autonuma_check_new_page(struct page *page) {}
 
 #endif /* CONFIG_AUTONUMA */
 
