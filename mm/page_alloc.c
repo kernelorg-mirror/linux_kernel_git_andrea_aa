@@ -833,6 +833,7 @@ static inline int check_new_page(struct page *page)
 		bad_page(page);
 		return 1;
 	}
+	autonuma_check_new_page(page);
 	return 0;
 }
 
