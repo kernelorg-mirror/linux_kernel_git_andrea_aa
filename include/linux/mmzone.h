@@ -17,6 +17,7 @@
 #include <linux/pageblock-flags.h>
 #include <generated/bounds.h>
 #include <linux/atomic.h>
+#include <linux/autonuma_list.h>
 #include <asm/page.h>
 
 /* Free memory management - zoned buddy allocator.  */
@@ -710,7 +711,7 @@ typedef struct pglist_data {
 	 * <linux/page_autonuma.h> and the below field must remain the
 	 * last one of this structure.
 	 */
-	struct list_head autonuma_migrate_head[0];
+	struct autonuma_list_head autonuma_migrate_head[0];
 #endif
 } pg_data_t;
 

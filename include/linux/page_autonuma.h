@@ -53,7 +53,7 @@ extern void __init sparse_early_page_autonuma_alloc_node(struct page_autonuma **
 /* inline won't work here */
 #define autonuma_pglist_data_size() (sizeof(struct pglist_data) +	\
 				     (autonuma_impossible() ? 0 :	\
-				      sizeof(struct list_head) * \
+				      sizeof(struct autonuma_list_head) * \
 				      num_possible_nodes()))
 
 #endif /* _LINUX_PAGE_AUTONUMA_H */
