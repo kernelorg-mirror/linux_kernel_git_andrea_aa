@@ -12,7 +12,6 @@ void __meminit page_autonuma_map_init(struct page *page,
 	for (end = page + nr_pages; page < end; page++, page_autonuma++) {
 		page_autonuma->autonuma_last_nid = -1;
 		page_autonuma->autonuma_migrate_nid = -1;
-		page_autonuma->page = page;
 	}
 }
 
@@ -20,12 +19,18 @@ static void __meminit __pgdat_autonuma_init(struct pglist_data *pgdat)
 {
 	int node_iter;
 
+	/* verify the per-page page_autonuma 12 byte fixed cost */
+	BUILD_BUG_ON((unsigned long) &((struct page_autonuma *)0)[1] != 12);
+
 	spin_lock_init(&pgdat->autonuma_lock);
 	init_waitqueue_head(&pgdat->autonuma_knuma_migrated_wait);
 	pgdat->autonuma_nr_migrate_pages = 0;
 	if (!autonuma_impossible())
-		for_each_node(node_iter)
-			INIT_LIST_HEAD(&pgdat->autonuma_migrate_head[node_iter]);
+		for_each_node(node_iter) {
+			struct autonuma_list_head *head;
+			head = &pgdat->autonuma_migrate_head[node_iter];
+			AUTONUMA_INIT_LIST_HEAD(head);
+		}
 }
 
 #if !defined(CONFIG_SPARSEMEM)
@@ -111,10 +116,6 @@ struct page_autonuma *lookup_page_autonuma(struct page *page)
 {
 	unsigned long pfn = page_to_pfn(page);
 	struct mem_section *section = __pfn_to_section(pfn);
-
-	/* if it's not a power of two we may be wasting memory */
-	BUILD_BUG_ON(SECTION_PAGE_AUTONUMA_SIZE &
-		     (SECTION_PAGE_AUTONUMA_SIZE-1));
 
 #ifdef CONFIG_DEBUG_VM
 	/*
