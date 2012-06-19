@@ -1,5 +1,6 @@
 #include <linux/mm.h>
 #include <linux/memory.h>
+#include <linux/vmalloc.h>
 #include <linux/autonuma.h>
 #include <linux/page_autonuma.h>
 #include <linux/bootmem.h>
@@ -12,13 +13,15 @@ void __meminit page_autonuma_map_init(struct page *page,
 	for (end = page + nr_pages; page < end; page++, page_autonuma++) {
 		page_autonuma->autonuma_last_nid = -1;
 		page_autonuma->autonuma_migrate_nid = -1;
-		page_autonuma->page = page;
 	}
 }
 
 static void __meminit __pgdat_autonuma_init(struct pglist_data *pgdat)
 {
 	int node_iter;
+
+	/* verify the per-page page_autonuma 12 byte fixed cost */
+	BUILD_BUG_ON((unsigned long) &((struct page_autonuma *)0)[1] != 12);
 
 	spin_lock_init(&pgdat->autonuma_lock);
 	init_waitqueue_head(&pgdat->autonuma_knuma_migrated_wait);
@@ -30,8 +33,11 @@ static void __meminit __pgdat_autonuma_init(struct pglist_data *pgdat)
 
 	/* noautonuma early param may also clear AUTONUMA_POSSIBLE_FLAG */
 	if (autonuma_possible())
-		for_each_node(node_iter)
-			INIT_LIST_HEAD(&pgdat->autonuma_migrate_head[node_iter]);
+		for_each_node(node_iter) {
+			struct autonuma_list_head *head;
+			head = &pgdat->autonuma_migrate_head[node_iter];
+			AUTONUMA_INIT_LIST_HEAD(head);
+		}
 }
 
 #if !defined(CONFIG_SPARSEMEM)
@@ -119,14 +125,6 @@ struct page_autonuma *lookup_page_autonuma(struct page *page)
 	unsigned long pfn = page_to_pfn(page);
 	struct mem_section *section = __pfn_to_section(pfn);
 
-	/* if it's not a power of two we may be wasting memory */
-	BUILD_BUG_ON(SECTION_PAGE_AUTONUMA_SIZE &
-		     (SECTION_PAGE_AUTONUMA_SIZE-1));
-
-	/* memsection must be a power of two */
-	BUILD_BUG_ON(sizeof(struct mem_section) &
-		     (sizeof(struct mem_section)-1));
-
 #ifdef CONFIG_DEBUG_VM
 	/*
 	 * The sanity checks the page allocator does upon freeing a
@@ -142,6 +140,10 @@ struct page_autonuma *lookup_page_autonuma(struct page *page)
 
 void __meminit pgdat_autonuma_init(struct pglist_data *pgdat)
 {
+	/* memsection must be a power of two */
+	BUILD_BUG_ON(sizeof(struct mem_section) &
+		     (sizeof(struct mem_section)-1));
+
 	__pgdat_autonuma_init(pgdat);
 }
 

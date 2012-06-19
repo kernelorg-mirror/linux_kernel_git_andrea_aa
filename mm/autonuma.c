@@ -89,7 +89,14 @@ void autonuma_migrate_split_huge_page(struct page *page,
 	VM_BUG_ON(nid < -1);
 	VM_BUG_ON(page_tail_autonuma->autonuma_migrate_nid != -1);
 	if (nid >= 0) {
-		VM_BUG_ON(page_to_nid(page) != page_to_nid(page_tail));
+		bool added;
+		int page_nid = page_to_nid(page);
+		struct autonuma_list_head *head;
+		autonuma_list_entry entry;
+		entry = autonuma_page_to_list_entry(page_nid, page);
+		head = &NODE_DATA(nid)->autonuma_migrate_head[page_nid];
+		VM_BUG_ON(page_nid != page_to_nid(page_tail));
+		VM_BUG_ON(page_nid == nid);
 
 		/*
 		 * The caller only takes the compound_lock for the
@@ -101,11 +108,19 @@ void autonuma_migrate_split_huge_page(struct page *page,
 		 */
 		compound_lock(page_tail);
 		autonuma_migrate_lock(nid);
-		list_add_tail(&page_tail_autonuma->autonuma_migrate_node,
-			      &page_autonuma->autonuma_migrate_node);
+		added = autonuma_list_add_tail(page_nid, page_tail, entry,
+					       head);
+		/*
+		 * AUTONUMA_LIST_MAX_PFN_OFFSET+1 isn't a power of 2
+		 * so "added" may be false if there's a pfn overflow
+		 * in the list.
+		 */
+		if (!added)
+			NODE_DATA(nid)->autonuma_nr_migrate_pages--;
 		autonuma_migrate_unlock(nid);
 
-		page_tail_autonuma->autonuma_migrate_nid = nid;
+		if (added)
+			page_tail_autonuma->autonuma_migrate_nid = nid;
 		compound_unlock(page_tail);
 	}
 
@@ -127,8 +142,15 @@ void __autonuma_migrate_page_remove(struct page *page,
 	VM_BUG_ON(nid < -1);
 	if (nid >= 0) {
 		int numpages = hpage_nr_pages(page);
+		int page_nid = page_to_nid(page);
+		struct autonuma_list_head *head;
+		VM_BUG_ON(nid == page_nid);
+		head = &NODE_DATA(nid)->autonuma_migrate_head[page_nid];
+
 		autonuma_migrate_lock(nid);
-		list_del(&page_autonuma->autonuma_migrate_node);
+		autonuma_list_del(page_nid,
+				  &page_autonuma->autonuma_migrate_node,
+				  head);
 		NODE_DATA(nid)->autonuma_nr_migrate_pages -= numpages;
 		autonuma_migrate_unlock(nid);
 
@@ -147,6 +169,8 @@ static void __autonuma_migrate_page_add(struct page *page,
 	int numpages;
 	unsigned long nr_migrate_pages;
 	wait_queue_head_t *wait_queue;
+	struct autonuma_list_head *head;
+	bool added;
 
 	VM_BUG_ON(dst_nid >= MAX_NUMNODES);
 	VM_BUG_ON(dst_nid < -1);
@@ -170,25 +194,42 @@ static void __autonuma_migrate_page_add(struct page *page,
 	VM_BUG_ON(nid >= MAX_NUMNODES);
 	VM_BUG_ON(nid < -1);
 	if (nid >= 0) {
+		VM_BUG_ON(nid == page_nid);
+		head = &NODE_DATA(nid)->autonuma_migrate_head[page_nid];
+
 		autonuma_migrate_lock(nid);
-		list_del(&page_autonuma->autonuma_migrate_node);
+		autonuma_list_del(page_nid,
+				  &page_autonuma->autonuma_migrate_node,
+				  head);
 		NODE_DATA(nid)->autonuma_nr_migrate_pages -= numpages;
 		autonuma_migrate_unlock(nid);
 	}
 
+	head = &NODE_DATA(dst_nid)->autonuma_migrate_head[page_nid];
+
 	autonuma_migrate_lock(dst_nid);
-	list_add(&page_autonuma->autonuma_migrate_node,
-		 &NODE_DATA(dst_nid)->autonuma_migrate_head[page_nid]);
-	NODE_DATA(dst_nid)->autonuma_nr_migrate_pages += numpages;
-	nr_migrate_pages = NODE_DATA(dst_nid)->autonuma_nr_migrate_pages;
+	added = autonuma_list_add(page_nid, page, AUTONUMA_LIST_HEAD, head);
+	if (added) {
+		NODE_DATA(dst_nid)->autonuma_nr_migrate_pages += numpages;
+		nr_migrate_pages = NODE_DATA(dst_nid)->autonuma_nr_migrate_pages;
+	}
 
 	autonuma_migrate_unlock(dst_nid);
 
-	page_autonuma->autonuma_migrate_nid = dst_nid;
+	if (added)
+		page_autonuma->autonuma_migrate_nid = dst_nid;
 
 	compound_unlock_irqrestore(page, flags);
 
-	if (!autonuma_migrate_defer()) {
+	/* Done, if migrate defer flag is set */
+	if (autonuma_migrate_defer())
+		return;
+
+	/*
+	 * Wake up migrate daemon if the number of pages has reached
+	 * the threshold.
+	 */
+	if (added) {
 		wait_queue = &NODE_DATA(dst_nid)->autonuma_knuma_migrated_wait;
 		if (nr_migrate_pages >= pages_to_migrate &&
 		    nr_migrate_pages - numpages < pages_to_migrate &&
@@ -928,7 +969,7 @@ static int isolate_migratepages(struct list_head *migratepages,
 				struct pglist_data *pgdat)
 {
 	int nr = 0, nid;
-	struct list_head *heads = pgdat->autonuma_migrate_head;
+	struct autonuma_list_head *heads = pgdat->autonuma_migrate_head;
 
 	/* FIXME: THP balancing, restart from last nid */
 	for_each_online_node(nid) {
@@ -948,10 +989,10 @@ static int isolate_migratepages(struct list_head *migratepages,
 			  "thread has been altered in a suboptimal way\n",
 			  pgdat->node_id);
 		if (nid == pgdat->node_id) {
-			VM_BUG_ON(!list_empty(&heads[nid]));
+			VM_BUG_ON(!autonuma_list_empty_debug(&heads[nid]));
 			continue;
 		}
-		if (list_empty(&heads[nid]))
+		if (autonuma_list_empty(&heads[nid]))
 			continue;
 		/* some page wants to go to this pgdat */
 		/*
@@ -963,22 +1004,26 @@ static int isolate_migratepages(struct list_head *migratepages,
 		 * obtained the autonuma_migrate_lock here.
 		 */
 		autonuma_migrate_lock_irq(pgdat->node_id);
-		if (list_empty(&heads[nid])) {
+		if (autonuma_list_empty_debug(&heads[nid])) {
 			autonuma_migrate_unlock_irq(pgdat->node_id);
 			continue;
 		}
-		page_autonuma = list_entry(heads[nid].prev,
-					   struct page_autonuma,
-					   autonuma_migrate_node);
-		page = page_autonuma->page;
+		page = autonuma_list_entry_to_page(nid,
+						   heads[nid].anl_prev_pfn);
+		BUG_ON(nid != page_to_nid(page));
+		page_autonuma = lookup_page_autonuma(page);
 		if (unlikely(!get_page_unless_zero(page))) {
+			struct autonuma_list_head *entry_head;
 			/*
 			 * Is getting freed and will remove self from the
 			 * autonuma list shortly, skip it for now.
 			 */
-			list_del(&page_autonuma->autonuma_migrate_node);
-			list_add(&page_autonuma->autonuma_migrate_node,
-				 &heads[nid]);
+			entry_head = &page_autonuma->autonuma_migrate_node;
+			autonuma_list_del(nid, entry_head, &heads[nid]);
+			if (!autonuma_list_add(nid, page,
+					       AUTONUMA_LIST_HEAD,
+					       &heads[nid]))
+				BUG();
 			autonuma_migrate_unlock_irq(pgdat->node_id);
 			autonuma_printk("autonuma migrate page is free\n");
 			continue;
@@ -990,8 +1035,6 @@ static int isolate_migratepages(struct list_head *migratepages,
 			put_page(page);
 			continue;
 		}
-
-		VM_BUG_ON(nid != page_to_nid(page));
 
 		if (PageTransHuge(page)) {
 			VM_BUG_ON(!PageAnon(page));
