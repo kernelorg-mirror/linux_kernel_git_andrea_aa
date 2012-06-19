@@ -4,6 +4,7 @@
 #ifdef CONFIG_AUTONUMA
 
 #include <linux/numa.h>
+#include <linux/autonuma_list.h>
 
 
 /*
@@ -81,6 +82,19 @@ struct task_autonuma {
 /*
  * Per page (or per-pageblock) structure dynamically allocated only if
  * autonuma is possible.
+ *
+ * This structure takes 12 bytes per page for all architectures. There
+ * are two constraints to make this work:
+ *
+ * 1) the build will abort if MAX_NUMNODES is too big according to
+ *    the #error check below
+ *
+ * 2) AutoNUMA will not succeed to insert into the migration queue any
+ *    page whose pfn offset value (offset with respect to the first
+ *    pfn of the node) is bigger than AUTONUMA_LIST_MAX_PFN_OFFSET
+ *    (NOTE: AUTONUMA_LIST_MAX_PFN_OFFSET is still a valid pfn offset
+ *    value). This means with huge node sizes and small PAGE_SIZE,
+ *    some pages may not be allowed to be migrated.
  */
 struct page_autonuma {
 	/*
@@ -91,7 +105,14 @@ struct page_autonuma {
 	 * systems). Architectures without this granularity require
 	 * autonuma_last_nid to be a long.
 	 */
-#ifdef CONFIG_64BIT
+#if MAX_NUMNODES > 32767
+	/*
+	 * Verify at build time that int16_t for autonuma_migrate_nid
+	 * and autonuma_last_nid won't risk to overflow, max allowed
+	 * nid value is (2**15)-1.
+	 */
+#error "too many nodes"
+#endif
 	/*
 	 * If autonuma_migrate_nid is >= 0, it means the page_autonuma
 	 * structure is linked into one of the NUMA node's migrate
@@ -100,7 +121,7 @@ struct page_autonuma {
 	 * page_autonuma structure is not linked into any NUMA node's
 	 * migrate list.
 	 */
-	int autonuma_migrate_nid;
+	int16_t autonuma_migrate_nid;
 	/*
 	 * autonuma_last_nid records the NUMA node that accessed the
 	 * page during the last NUMA hinting page fault. If a
@@ -109,28 +130,14 @@ struct page_autonuma {
 	 * requiring that a page be accessed by the same node twice in
 	 * a row before it is queued for migration.
 	 */
-	int autonuma_last_nid;
-#else
-#if MAX_NUMNODES > 32767
-#error "too many nodes"
-#endif
-	short autonuma_migrate_nid;
-	short autonuma_last_nid;
-#endif
+	int16_t autonuma_last_nid;
+
 	/*
 	 * This is the list node that links the page (referenced by
 	 * the page_autonuma structure) in the
 	 * &NODE_DATA(dst_nid)->autonuma_migrate_head[page_nid] lru.
 	 */
-	struct list_head autonuma_migrate_node;
-
-	/*
-	 * To find the page starting from the autonuma_migrate_node we
-	 * need a backlink.
-	 *
-	 * FIXME: drop it;
-	 */
-	struct page *page;
+	struct autonuma_list_head autonuma_migrate_node;
 };
 
 extern int alloc_task_autonuma(struct task_struct *tsk,
