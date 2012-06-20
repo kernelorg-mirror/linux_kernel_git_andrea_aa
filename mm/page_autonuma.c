@@ -1,6 +1,6 @@
 #include <linux/mm.h>
 #include <linux/memory.h>
-#include <linux/autonuma_flags.h>
+#include <linux/autonuma.h>
 #include <linux/page_autonuma.h>
 #include <linux/bootmem.h>
 
