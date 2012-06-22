@@ -220,7 +220,24 @@ void sched_autonuma_balance(void)
 	}
 
 	selected_cpu = this_cpu;
-	selected_nid = cpu_nid;
+	/*
+	 * Avoid the process migration if we don't find an ideal not
+	 * idle CPU (hence the above selected_cpu = this_cpu), but
+	 * keep the autonuma_node pointing to the node with most of
+	 * the thread memory as selected above using the thread
+	 * statistical data so the idle balancing code keeps
+	 * prioritizing on it when selecting an idle CPU where to run
+	 * the task on. Do not set it to the cpu_nid which would keep
+	 * it in the current nid even if maybe the thread memory got
+	 * allocated somewhere else because the current nid was
+	 * already full.
+	 *
+	 * NOTE: selected_nid should never be below zero here, it's
+	 * not a BUG_ON(selected_nid < 0), because it's nicer to keep
+	 * the autonuma thread/mm statistics speculative.
+	 */
+	if (selected_nid < 0)
+		selected_nid = cpu_nid;
 	weight = weight_delta_max = 0;
 
 	for_each_online_node(nid) {
