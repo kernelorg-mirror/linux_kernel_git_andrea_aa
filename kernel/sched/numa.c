@@ -473,6 +473,10 @@ found:
  * migrated in the first scan, a second scan is run with a zero numa
  * parameter.
  *
+ * If the numa parameter is not zero, this function allows the task
+ * migration only if the dst_cpu of the migration is in the node
+ * selected by AutoNUMA or if it's a idle load balancing event.
+ *
  * If load_balance_strict is enabled, AutoNUMA will only allow
  * migration of tasks for idle balancing purposes (the idle balancing
  * of CFS is never altered by AutoNUMA). In the not strict mode the
