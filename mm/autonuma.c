@@ -25,7 +25,7 @@ unsigned long autonuma_flags __read_mostly =
 #ifdef CONFIG_AUTONUMA_DEFAULT_ENABLED
 	|(1<<AUTONUMA_ENABLED_FLAG)
 #endif
-	|(1<<AUTONUMA_SCAN_PMD_FLAG);
+	|(0<<AUTONUMA_SCAN_PMD_FLAG);
 
 static DEFINE_MUTEX(knumad_mm_mutex);
 

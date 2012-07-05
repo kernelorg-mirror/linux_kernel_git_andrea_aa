@@ -7,6 +7,8 @@
 #define _PAGE_COMBO	0x10000000 /* this is a combo 4k page */
 #define _PAGE_4K_PFN	0x20000000 /* PFN is for a single 4k page */
 
+#define _PAGE_NUMA_PTE 0x40000000 /* Adjust PTE_RPN_SHIFT below */
+
 /* For 64K page, we don't have a separate _PAGE_HASHPTE bit. Instead,
  * we set that to be the whole sub-bits mask. The C code will only
  * test this, so a multi-bit mask will work. For combo pages, this
@@ -36,7 +38,7 @@
  * That gives us a max RPN of 34 bits, which means a max of 50 bits
  * of addressable physical space, or 46 bits for the special 4k PFNs.
  */
-#define PTE_RPN_SHIFT	(30)
+#define PTE_RPN_SHIFT	(31)
 
 #ifndef __ASSEMBLY__
 
