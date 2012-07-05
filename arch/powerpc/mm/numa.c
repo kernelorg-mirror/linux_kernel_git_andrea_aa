@@ -22,6 +22,7 @@
 #include <linux/pfn.h>
 #include <linux/cpuset.h>
 #include <linux/node.h>
+#include <linux/page_autonuma.h>
 #include <asm/sparsemem.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
@@ -1045,7 +1046,7 @@ void __init do_init_bootmem(void)
 		 * all reserved areas marked.
 		 */
 		NODE_DATA(nid) = careful_zallocation(nid,
-					sizeof(struct pglist_data),
+					autonuma_pglist_data_size(),
 					SMP_CACHE_BYTES, end_pfn);
 
   		dbg("node %d\n", nid);
