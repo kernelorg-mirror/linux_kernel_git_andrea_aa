@@ -33,9 +33,55 @@ static inline int pte_dirty(pte_t pte)		{ return pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_file(pte_t pte)		{ return pte_val(pte) & _PAGE_FILE; }
 static inline int pte_special(pte_t pte)	{ return pte_val(pte) & _PAGE_SPECIAL; }
-static inline int pte_present(pte_t pte)	{ return pte_val(pte) & _PAGE_PRESENT; }
+static inline int pte_present(pte_t pte)	{ return pte_val(pte) &
+							(_PAGE_PRESENT|_PAGE_NUMA_PTE); }
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
 static inline pgprot_t pte_pgprot(pte_t pte)	{ return __pgprot(pte_val(pte) & PAGE_PROT_BITS); }
+
+#ifdef CONFIG_AUTONUMA
+static inline int pte_numa(pte_t pte)
+{
+       return (pte_val(pte) &
+               (_PAGE_NUMA_PTE|_PAGE_PRESENT)) == _PAGE_NUMA_PTE;
+}
+
+#endif
+
+static inline pte_t pte_mknonnuma(pte_t pte)
+{
+       pte_val(pte) &= ~_PAGE_NUMA_PTE;
+       pte_val(pte) |= (_PAGE_PRESENT|_PAGE_ACCESSED);
+
+       return pte;
+}
+
+static inline pte_t pte_mknuma(pte_t pte)
+{
+       pte_val(pte) |= _PAGE_NUMA_PTE;
+       pte_val(pte) &= ~_PAGE_PRESENT;
+       return pte;
+}
+
+static inline int pmd_numa(pmd_t pmd)
+{
+       /* PMD tracking not implemented */
+       return 0;
+}
+
+static inline pmd_t pmd_mknonnuma(pmd_t pmd)
+{
+	BUG();
+	return pmd;
+}
+
+static inline pmd_t pmd_mknuma(pmd_t pmd)
+{
+	BUG();
+	return pmd;
+}
+
+/* No pmd flags on powerpc */
+#define set_pmd_at(mm, addr, pmdp, pmd)  do { } while (0)
 
 /* Conversion functions: convert a page and protection to a page entry,
  * and a page entry and page directory to the page they refer to.
