@@ -73,6 +73,20 @@ enum autonuma_flag {
 	 * Default set.
 	 */
 	AUTONUMA_SCAN_PMD_FLAG,
+	/*
+	 * If not set, a page must successfully pass a last_nid check
+	 * before it can be migrated if it's the very first NUMA
+	 * hinting page fault occurring on the page. If set, the first
+	 * NUMA hinting page fault of a newly allocated page will
+	 * always pass the last_nid check.
+	 *
+	 * If set a newly started workload can converge quicker, but
+	 * it may incur in more false positive migrations before
+	 * reaching convergence.
+	 *
+	 * Default set.
+	 */
+	AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG,
 };
 
 extern unsigned long autonuma_flags;
@@ -106,6 +120,12 @@ static inline bool autonuma_child_inheritance(void)
 static inline bool autonuma_scan_pmd(void)
 {
 	return test_bit(AUTONUMA_SCAN_PMD_FLAG, &autonuma_flags);
+}
+
+static inline bool autonuma_migrate_allow_first_fault(void)
+{
+	return test_bit(AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG,
+			&autonuma_flags);
 }
 
 #else /* CONFIG_AUTONUMA */
