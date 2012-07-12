@@ -140,6 +140,12 @@ config PPC
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 
+# allow AutoNUMA only on PPC64 for now
+config PPC_HAVE_ARCH_AUTONUMA
+	bool
+	default y if PPC64
+	select HAVE_ARCH_AUTONUMA
+
 config EARLY_PRINTK
 	bool
 	default y
