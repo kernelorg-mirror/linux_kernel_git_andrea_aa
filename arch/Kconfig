@@ -284,4 +284,7 @@ config SECCOMP_FILTER
 config HAVE_ARCH_AUTONUMA
 	bool
 
+config HAVE_ARCH_AUTONUMA_SCAN_PMD
+	bool
+
 source "kernel/gcov/Kconfig"
