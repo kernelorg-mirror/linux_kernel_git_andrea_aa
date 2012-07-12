@@ -25,7 +25,9 @@ unsigned long autonuma_flags __read_mostly =
 #ifdef CONFIG_AUTONUMA_DEFAULT_ENABLED
 	|(1<<AUTONUMA_ENABLED_FLAG)
 #endif
-	|(0<<AUTONUMA_SCAN_PMD_FLAG)
+#ifdef CONFIG_HAVE_ARCH_AUTONUMA_SCAN_PMD
+	|(1<<AUTONUMA_SCAN_PMD_FLAG)
+#endif
 	|(1<<AUTONUMA_MM_WORKING_SET_FLAG)
 	|(1<<AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG);
 
@@ -1345,7 +1347,9 @@ static ssize_t NAME ## _store(struct kobject *kobj,			\
 static struct kobj_attribute NAME ## _attr =				\
 	__ATTR(NAME, 0644, NAME ## _show, NAME ## _store);
 
+#ifdef CONFIG_HAVE_ARCH_AUTONUMA_SCAN_PMD
 SYSFS_ENTRY(pmd, AUTONUMA_SCAN_PMD_FLAG);
+#endif /* CONFIG_HAVE_ARCH_AUTONUMA_SCAN_PMD */
 SYSFS_ENTRY(debug, AUTONUMA_DEBUG_FLAG);
 #ifdef CONFIG_DEBUG_VM
 SYSFS_ENTRY(load_balance_strict, AUTONUMA_SCHED_LOAD_BALANCE_STRICT_FLAG);
@@ -1445,7 +1449,9 @@ static struct attribute *knuma_scand_attr[] = {
 	&pages_to_scan_attr.attr,
 	&pages_scanned_attr.attr,
 	&full_scans_attr.attr,
+#ifdef CONFIG_HAVE_ARCH_AUTONUMA_SCAN_PMD
 	&pmd_attr.attr,
+#endif
 #ifdef CONFIG_DEBUG_VM
 	&mm_working_set_attr.attr,
 #endif
