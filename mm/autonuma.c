@@ -25,7 +25,8 @@ unsigned long autonuma_flags __read_mostly =
 #ifdef CONFIG_AUTONUMA_DEFAULT_ENABLED
 	|(1<<AUTONUMA_ENABLED_FLAG)
 #endif
-	|(1<<AUTONUMA_SCAN_PMD_FLAG);
+	|(1<<AUTONUMA_SCAN_PMD_FLAG)
+	|(1<<AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG);
 
 static DEFINE_MUTEX(knumad_mm_mutex);
 
@@ -342,7 +343,8 @@ static inline bool last_nid_set(struct page *page, int this_nid)
 	int autonuma_last_nid = ACCESS_ONCE(page_autonuma->autonuma_last_nid);
 	VM_BUG_ON(this_nid < 0);
 	VM_BUG_ON(this_nid >= MAX_NUMNODES);
-	if (autonuma_last_nid >= 0 && autonuma_last_nid != this_nid) {
+	if ((!autonuma_migrate_allow_first_fault() ||
+	     autonuma_last_nid >= 0) && autonuma_last_nid != this_nid) {
 		int migrate_nid;
 		migrate_nid = ACCESS_ONCE(page_autonuma->autonuma_migrate_nid);
 		if (migrate_nid >= 0)
@@ -1330,6 +1332,7 @@ SYSFS_ENTRY(debug, AUTONUMA_DEBUG_FLAG);
 SYSFS_ENTRY(load_balance_strict, AUTONUMA_SCHED_LOAD_BALANCE_STRICT_FLAG);
 SYSFS_ENTRY(defer, AUTONUMA_MIGRATE_DEFER_FLAG);
 SYSFS_ENTRY(reset, AUTONUMA_SCHED_RESET_FLAG);
+SYSFS_ENTRY(allow_first_fault, AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG);
 #endif /* CONFIG_DEBUG_VM */
 
 #undef SYSFS_ENTRY
@@ -1436,6 +1439,7 @@ static struct attribute *knuma_migrated_attr[] = {
 	&pages_migrated_attr.attr,
 #ifdef CONFIG_DEBUG_VM
 	&defer_attr.attr,
+	&allow_first_fault_attr.attr,
 #endif
 	NULL,
 };
