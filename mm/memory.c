@@ -3522,6 +3522,12 @@ retry:
 		pmd_t orig_pmd = *pmd;
 		int ret;
 
+		/*
+		 * flush orig_pmd on the stack to avoid invalidating
+		 * the pmd_trans_huge(orig_pmd) check and to allow
+		 * do_huge_pmd_wp_page to run a reliable
+		 * pmd_same(*pmd, orig_pmd).
+		 */
 		barrier();
 		if (pmd_trans_huge(orig_pmd)) {
 			if (flags & FAULT_FLAG_WRITE &&
