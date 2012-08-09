@@ -2261,9 +2261,7 @@ static int khugepaged_wait_event(void)
 static void khugepaged_do_scan(struct page **hpage)
 {
 	unsigned int progress = 0, pass_through_head = 0;
-	unsigned int pages = khugepaged_pages_to_scan;
-
-	barrier(); /* write khugepaged_pages_to_scan to local stack */
+	unsigned int pages = ACCESS_ONCE(khugepaged_pages_to_scan);
 
 	while (progress < pages) {
 		cond_resched();
