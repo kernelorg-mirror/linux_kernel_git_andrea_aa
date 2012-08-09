@@ -3519,7 +3519,7 @@ retry:
 			return do_huge_pmd_anonymous_page(mm, vma, address,
 							  pmd, flags);
 	} else {
-		pmd_t orig_pmd = *pmd;
+		pmd_t orig_pmd;
 		int ret;
 
 		/*
@@ -3528,7 +3528,7 @@ retry:
 		 * do_huge_pmd_wp_page to run a reliable
 		 * pmd_same(*pmd, orig_pmd).
 		 */
-		barrier();
+		orig_pmd = ACCESS_ONCE(*pmd);
 		if (pmd_trans_huge(orig_pmd)) {
 			if (flags & FAULT_FLAG_WRITE &&
 			    !pmd_write(orig_pmd) &&
