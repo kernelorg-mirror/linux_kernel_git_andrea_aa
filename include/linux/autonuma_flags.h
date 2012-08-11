@@ -95,6 +95,18 @@ enum autonuma_flag {
 	 * Default not set.
 	 */
 	AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG,
+	/*
+	 * If set mm_autonuma will represent a working set estimation
+	 * of the memory used by the process over the last knuma_scand
+	 * pass.
+	 *
+	 * If not set mm_autonuma will represent all (not shared)
+	 * memory eligible for automatic migration mapped by the
+	 * process.
+	 *
+	 * Default set.
+	 */
+	AUTONUMA_MM_WORKING_SET_FLAG,
 };
 
 extern unsigned long autonuma_flags;
@@ -139,6 +151,12 @@ static inline bool autonuma_migrate_defer(void)
 static inline bool autonuma_migrate_allow_first_fault(void)
 {
 	return test_bit(AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG,
+			&autonuma_flags);
+}
+
+static inline bool autonuma_mm_working_set(void)
+{
+	return test_bit(AUTONUMA_MM_WORKING_SET_FLAG,
 			&autonuma_flags);
 }
 
