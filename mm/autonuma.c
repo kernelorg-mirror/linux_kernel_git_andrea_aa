@@ -25,6 +25,7 @@ unsigned long autonuma_flags __read_mostly =
 	|(1<<AUTONUMA_ENABLED_FLAG)
 #endif
 	|(1<<AUTONUMA_SCAN_PMD_FLAG)
+	|(1<<AUTONUMA_MM_WORKING_SET_FLAG)
 	|(1<<AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG);
 
 static DEFINE_MUTEX(knumad_mm_mutex);
@@ -592,6 +593,11 @@ static int knuma_scand_pmd(struct mm_struct *mm,
 
 		VM_BUG_ON(address & ~HPAGE_PMD_MASK);
 
+		if (autonuma_mm_working_set() && pmd_numa(*pmd)) {
+			spin_unlock(&mm->page_table_lock);
+			goto out;
+		}
+
 		page = pmd_page(*pmd);
 
 		/* only check non-shared pages */
@@ -626,6 +632,8 @@ static int knuma_scand_pmd(struct mm_struct *mm,
 		pte_t pteval = *_pte;
 		unsigned long *fault_tmp;
 		if (!pte_present(pteval))
+			continue;
+		if (autonuma_mm_working_set() && pte_numa(pteval))
 			continue;
 		page = vm_normal_page(vma, _address, pteval);
 		if (unlikely(!page))
@@ -669,6 +677,17 @@ static void mm_numa_fault_tmp_flush(struct mm_struct *mm)
 	struct mm_autonuma *mma = mm->mm_autonuma;
 	unsigned long tot;
 	unsigned long *fault_tmp = knuma_scand_data.mm_numa_fault_tmp;
+
+	if (autonuma_mm_working_set()) {
+		for_each_node(nid) {
+			tot = fault_tmp[nid];
+			if (tot)
+				break;
+		}
+		if (!tot)
+			/* process was idle, keep the old data */
+			return;
+	}
 
 	/* FIXME: would be better protected with write_seqlock_bh() */
 	local_bh_disable();
@@ -1052,6 +1071,7 @@ SYSFS_ENTRY(sched_load_balance_strict, AUTONUMA_SCHED_LOAD_BALANCE_STRICT_FLAG);
 SYSFS_ENTRY(child_inheritance, AUTONUMA_CHILD_INHERITANCE_FLAG);
 SYSFS_ENTRY(migrate_allow_first_fault,
 	    AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG);
+SYSFS_ENTRY(mm_working_set, AUTONUMA_MM_WORKING_SET_FLAG);
 #endif /* CONFIG_DEBUG_VM */
 
 #undef SYSFS_ENTRY
@@ -1151,6 +1171,7 @@ static struct attribute *autonuma_attr[] = {
 #ifdef CONFIG_DEBUG_VM
 	&sched_load_balance_strict_attr.attr,
 	&child_inheritance_attr.attr,
+	&mm_working_set_attr.attr,
 #endif
 
 	NULL,

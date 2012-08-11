@@ -60,9 +60,10 @@ enum autonuma_flag {
 	 * faults at the pmd level instead of the pte level. This
 	 * reduces the number of NUMA hinting faults potentially
 	 * saving CPU time. It reduces the accuracy of the
-	 * task_autonuma statistics (but does not change the accuracy
-	 * of the mm_autonuma statistics). This flag can be toggled
-	 * through sysfs as runtime.
+	 * task_autonuma statistics (it doesn't change the accuracy of
+	 * the mm_autonuma statistics if the mm_working_set mode is
+	 * not set). This flag can be toggled through sysfs as
+	 * runtime.
 	 *
 	 * This flag does not affect AutoNUMA with transparent
 	 * hugepages (THP). With THP the NUMA hinting page faults
@@ -87,6 +88,18 @@ enum autonuma_flag {
 	 * Default set.
 	 */
 	AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG,
+	/*
+	 * If set, mm_autonuma will represent a working set estimation
+	 * of the memory used by the process over the last knuma_scand
+	 * pass.
+	 *
+	 * If not set, mm_autonuma will represent all (not shared)
+	 * memory eligible for automatic migration mapped by the
+	 * process.
+	 *
+	 * Default set.
+	 */
+	AUTONUMA_MM_WORKING_SET_FLAG,
 };
 
 extern unsigned long autonuma_flags;
@@ -125,6 +138,12 @@ static inline bool autonuma_scan_pmd(void)
 static inline bool autonuma_migrate_allow_first_fault(void)
 {
 	return test_bit(AUTONUMA_MIGRATE_ALLOW_FIRST_FAULT_FLAG,
+			&autonuma_flags);
+}
+
+static inline bool autonuma_mm_working_set(void)
+{
+	return test_bit(AUTONUMA_MM_WORKING_SET_FLAG,
 			&autonuma_flags);
 }
 
