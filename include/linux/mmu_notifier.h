@@ -74,6 +74,13 @@ struct mmu_notifier_ops {
 	/*
 	 * change_pte is called in cases that pte mapping to page is changed:
 	 * for example, when ksm remaps pte to point to a new shared page.
+	 *
+	 * NOTE: If this method is used to setup a writable pte, it
+	 * must be preceded by a secondary MMU invalidate before the
+	 * pte is established in the primary MMU. That is required to
+	 * prevent the old page to be still be readable by the
+	 * secondary MMUs after the primary MMU gains write access to
+	 * the newpage.
 	 */
 	void (*change_pte)(struct mmu_notifier *mn,
 			   struct mm_struct *mm,
