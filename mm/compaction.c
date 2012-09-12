@@ -633,7 +633,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 
 	/* Perform the isolation */
 	low_pfn = isolate_migratepages_range(zone, cc, low_pfn, end_pfn);
-	if (!low_pfn || cc->contended)
+	if (!low_pfn || (cc->contended && !cc->nr_migratepages))
 		return ISOLATE_ABORT;
 
 	cc->migrate_pfn = low_pfn;
@@ -843,6 +843,10 @@ static unsigned long compact_zone_order(struct zone *zone,
 	INIT_LIST_HEAD(&cc.migratepages);
 
 	ret = compact_zone(zone, &cc);
+
+	VM_BUG_ON(!list_empty(&cc.freepages));
+	VM_BUG_ON(!list_empty(&cc.migratepages));
+
 	*contended = cc.contended;
 	return ret;
 }
