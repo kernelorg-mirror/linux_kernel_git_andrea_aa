@@ -1049,6 +1049,7 @@ int huge_pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
 			pmd_t pmd, pmd_t *pmdp)
 {
 	struct page *page;
+	bool migrated;
 
 	spin_lock(&mm->page_table_lock);
 	if (unlikely(!pmd_same(pmd, *pmdp)))
@@ -1063,9 +1064,11 @@ int huge_pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
 	get_page(page);
 	spin_unlock(&mm->page_table_lock);
 
-	numa_hinting_fault(page, HPAGE_PMD_NR);
+	migrated = false;
+	numa_hinting_fault(page, HPAGE_PMD_NR, &migrated);
 
-	put_page(page);
+	if (!migrated)
+		put_page(page);
 out:
 	return 0;
 

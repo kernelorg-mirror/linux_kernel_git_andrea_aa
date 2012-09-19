@@ -716,6 +716,8 @@ typedef struct pglist_data {
 #endif
 	/* number of pages from other nodes queued for migration to this node */
 	unsigned long autonuma_nr_migrate_pages;
+	unsigned long last_jiffies;
+	unsigned long pages_migrated;
 	/* waitqueue for this node knuma_migrated daemon */
 	wait_queue_head_t autonuma_knuma_migrated_wait;
 	/*

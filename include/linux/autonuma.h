@@ -68,6 +68,6 @@ extern int pte_numa_fixup(struct mm_struct *mm, struct vm_area_struct *vma,
 			  pmd_t *pmd);
 extern int pmd_numa_fixup(struct mm_struct *mm, unsigned long addr,
 			  pmd_t *pmd);
-extern void numa_hinting_fault(struct page *page, int numpages);
+extern void numa_hinting_fault(struct page *page, int numpages, bool *migrated);
 
 #endif /* _LINUX_AUTONUMA_H */

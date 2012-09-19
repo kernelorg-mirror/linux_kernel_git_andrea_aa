@@ -139,6 +139,7 @@ void __autonuma_migrate_page_remove(struct page *page,
 	unsigned long flags;
 	int nid;
 
+	return;
 	flags = compound_lock_irqsave(page);
 
 	nid = page_autonuma->autonuma_migrate_nid;
@@ -164,6 +165,7 @@ void __autonuma_migrate_page_remove(struct page *page,
 	compound_unlock_irqrestore(page, flags);
 }
 
+#if 0
 static void __autonuma_migrate_page_add(struct page *page,
 					struct page_autonuma *page_autonuma,
 					int dst_nid, int page_nid)
@@ -241,8 +243,105 @@ static void __autonuma_migrate_page_add(struct page *page,
 			wake_up_interruptible(wait_queue);
 	}
 }
+#endif
 
-static void autonuma_migrate_page_add(struct page *page, int dst_nid,
+static int sync_isolate_migratepages(struct list_head *migratepages,
+				     struct page *page,
+				     struct pglist_data *pgdat)
+{
+	struct zone *zone;
+	struct lruvec *lruvec;
+
+	if (!PageLRU(page))
+		return 0;
+
+	if (PageTransHuge(page)) {
+		VM_BUG_ON(!PageAnon(page));
+		/* FIXME: remove split_huge_page */
+		if (unlikely(split_huge_page(page))) {
+			autonuma_printk("autonuma migrate THP free\n");
+			return 0;
+		}
+	}
+
+	zone = page_zone(page);
+	spin_lock_irq(&zone->lru_lock);
+
+	/* Must run under the lru_lock and before page isolation */
+	lruvec = mem_cgroup_page_lruvec(page, zone);
+
+	if (!__isolate_lru_page(page, 0)) {
+		VM_BUG_ON(PageTransCompound(page));
+		del_page_from_lru_list(page, lruvec, page_lru(page));
+		inc_zone_state(zone, page_is_file_cache(page) ?
+			       NR_ISOLATED_FILE : NR_ISOLATED_ANON);
+		spin_unlock_irq(&zone->lru_lock);
+		/*
+		 * Pin the page at least until
+		 * __isolate_lru_page succeeds
+		 * (__isolate_lru_page pins it again when it
+		 * succeeds). If we unpin before
+		 * __isolate_lru_page returns, the page could
+		 * be freed and reallocated out from under
+		 * us. Thus our previous checks on the page,
+		 * and split_huge_page, would be worthless.
+		 */
+		put_page(page);
+
+		list_add(&page->lru, migratepages);
+		return hpage_nr_pages(page);
+	} else {
+		/* FIXME: losing page, safest and simplest for now */
+		spin_unlock_irq(&zone->lru_lock);
+	}
+
+	return 0;
+}
+
+static struct page *alloc_migrate_dst_page(struct page *page,
+					   unsigned long data,
+					   int **result);
+static bool autonuma_balance_pgdat(struct pglist_data *pgdat,
+				   int nr_migrate_pages);
+static int __autonuma_migrate_page_add(struct page *page,
+					struct page_autonuma *page_autonuma,
+					int dst_nid, int page_nid)
+{
+	int isolated = 0;
+	LIST_HEAD(migratepages);
+	struct pglist_data *pgdat = NODE_DATA(dst_nid);
+
+	autonuma_migrate_lock(dst_nid);
+	if (jiffies - pgdat->last_jiffies >
+	    msecs_to_jiffies(migrate_sleep_millisecs)) {
+		pgdat->pages_migrated = 0;
+		pgdat->last_jiffies = jiffies;
+	}
+	if (pgdat->pages_migrated >= pages_to_migrate) {
+		autonuma_migrate_unlock(dst_nid);
+		return 0;
+	}
+	pgdat->pages_migrated++;
+	autonuma_migrate_unlock(dst_nid);
+
+	if (autonuma_balance_pgdat(pgdat, 1))
+		isolated = sync_isolate_migratepages(&migratepages,
+						     page, pgdat);
+
+	if (isolated) {
+		int err;
+		pages_migrated += isolated; /* FIXME: per node */
+		err = migrate_pages(&migratepages, alloc_migrate_dst_page,
+				    pgdat->node_id, false, MIGRATE_SYNC);
+		if (err)
+			/* FIXME: requeue failed pages */
+			putback_lru_pages(&migratepages);
+	}
+	return isolated;
+
+}
+
+static int autonuma_migrate_page_add(struct page *page, int dst_nid,
 				      int page_nid)
 {
 	int migrate_nid;
@@ -250,8 +349,9 @@ static void autonuma_migrate_page_add(struct page *page, int dst_nid,
 
 	migrate_nid = ACCESS_ONCE(page_autonuma->autonuma_migrate_nid);
 	if (migrate_nid != dst_nid)
-		__autonuma_migrate_page_add(page, page_autonuma,
-					    dst_nid, page_nid);
+		return __autonuma_migrate_page_add(page, page_autonuma,
+						   dst_nid, page_nid);
+	return 0;
 }
 
 static bool autonuma_balance_pgdat(struct pglist_data *pgdat,
@@ -375,20 +475,24 @@ static int page_migrate_nid(struct page *page)
 
 static int numa_hinting_fault_memory_follow_cpu(struct page *page,
 						int this_nid, int page_nid,
-						bool new_pass)
+						bool new_pass,
+						bool *migrated)
 {
 	if (!last_nid_set(page, this_nid))
 		return page_nid;
 	if (!PageLRU(page))
 		return page_nid;
 	if (this_nid != page_nid)
-		autonuma_migrate_page_add(page, this_nid, page_nid);
+		*migrated = autonuma_migrate_page_add(page, this_nid, page_nid);
 	else
 		autonuma_migrate_page_remove(page);
-	return this_nid;
+	if (*migrated)
+		return this_nid;
+	else
+		return page_nid;
 }
 
-void numa_hinting_fault(struct page *page, int numpages)
+void numa_hinting_fault(struct page *page, int numpages, bool *migrated)
 {
 	/*
 	 * "current->mm" could be different from the "mm" where the
@@ -417,7 +521,8 @@ void numa_hinting_fault(struct page *page, int numpages)
 		access_nid = numa_hinting_fault_memory_follow_cpu(page,
 								  this_nid,
 								  page_nid,
-								  new_pass);
+								  new_pass,
+								  migrated);
 		numa_hinting_fault_cpu_follow_memory(p, access_nid,
 						     numpages, new_pass);
 		if (unlikely(new_pass))
@@ -438,6 +543,7 @@ int pte_numa_fixup(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	struct page *page;
 	spinlock_t *ptl;
+	bool migrated;
 
 	/*
 	 * The "pte" at this point cannot be used safely without
@@ -458,9 +564,11 @@ int pte_numa_fixup(struct mm_struct *mm, struct vm_area_struct *vma,
 	get_page(page);
 	pte_unmap_unlock(ptep, ptl);
 
-	numa_hinting_fault(page, 1);
+	migrated = false;
+	numa_hinting_fault(page, 1, &migrated);
 
-	put_page(page);
+	if (!migrated)
+		put_page(page);
 out:
 	return 0;
 
@@ -479,6 +587,7 @@ int pmd_numa_fixup(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp)
 	spinlock_t *ptl;
 	bool numa = false;
 	struct vm_area_struct *vma;
+	bool migrated;
 
 	spin_lock(&mm->page_table_lock);
 	pmd = *pmdp;
@@ -523,9 +632,11 @@ int pmd_numa_fixup(struct mm_struct *mm, unsigned long addr, pmd_t *pmdp)
 		get_page(page);
 		pte_unmap_unlock(pte, ptl);
 
-		numa_hinting_fault(page, 1);
+		migrated = false;
+		numa_hinting_fault(page, 1, &migrated);
 
-		put_page(page);
+		if (!migrated)
+			put_page(page);
 		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
 	}
 	pte_unmap_unlock(orig_pte, ptl);
