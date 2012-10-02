@@ -506,6 +506,21 @@ static inline notrace int ftrace_get_offsets_##call(			\
 #define __assign_str(dst, src)						\
 	strcpy(__get_str(dst), src);
 
+#undef __list_len_limit
+#define __list_len_limit(list, limit)					\
+	({								\
+		struct list_head *p;					\
+		unsigned int len = 0;					\
+		list_for_each(p, list)					\
+			if (++len >= limit)				\
+				break;					\
+		len;							\
+	})
+
+#undef __list_len
+#define __list_len(list)						\
+	__list_len_limit(list, ~0U)
+
 #undef TP_fast_assign
 #define TP_fast_assign(args...) args
 
