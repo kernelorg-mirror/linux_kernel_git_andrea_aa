@@ -18,6 +18,7 @@
 #include <linux/autonuma.h>
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
+#include <trace/events/numa.h>
 
 unsigned long autonuma_flags __read_mostly =
 	(1<<AUTONUMA_POSSIBLE_FLAG)
@@ -247,10 +248,13 @@ static bool autonuma_migrate_page(struct page *page, int dst_nid,
 	if (isolated) {
 		int err;
 		pages_migrated += isolated; /* FIXME: per node */
+		trace_numa_migratepages_begin(current->mm, &migratepages,
+					      page_nid, dst_nid);
 		err = migrate_pages(&migratepages, alloc_migrate_dst_page,
 				    pgdat->node_id, false, MIGRATE_ASYNC);
 		if (err)
 			putback_lru_pages(&migratepages);
+		trace_numa_migratepages_end(err);
 	}
 	BUG_ON(!list_empty(&migratepages));
 out:
