@@ -891,6 +891,9 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 }
 
 #ifdef CONFIG_MIGRATION
+#define CREATE_TRACE_POINTS
+#include <trace/events/numa.h>
+
 /*
  * page migration
  */
@@ -935,10 +938,12 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
 		return PTR_ERR(vma);
 
 	if (!list_empty(&pagelist)) {
+		trace_numa_migratepages_begin(mm, &pagelist, source, dest);
 		err = migrate_pages(&pagelist, new_node_page, dest,
 							false, MIGRATE_SYNC);
 		if (err)
 			putback_lru_pages(&pagelist);
+		trace_numa_migratepages_end(err);
 	}
 
 	return err;
@@ -1175,11 +1180,14 @@ static long do_mbind(unsigned long start, unsigned long len,
 		err = mbind_range(mm, start, end, new);
 
 		if (!list_empty(&pagelist)) {
+			trace_numa_migratepages_nodemask_begin(mm, &pagelist,
+							       NULL, nmask);
 			nr_failed = migrate_pages(&pagelist, new_vma_page,
 						(unsigned long)vma,
 						false, MIGRATE_SYNC);
 			if (nr_failed)
 				putback_lru_pages(&pagelist);
+			trace_numa_migratepages_nodemask_end(nr_failed);
 		}
 
 		if (!err && nr_failed && (flags & MPOL_MF_STRICT))
