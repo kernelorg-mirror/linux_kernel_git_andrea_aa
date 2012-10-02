@@ -1,0 +1,8 @@
+#!/bin/bash
+# FIXME: it would be nice if -D wasn't necessary, but without it we hang
+perf record -D						\
+	-e numa:numa_migratepages_begin			\
+	-e numa:numa_migratepages_end			\
+	-e numa:numa_migratepages_nodemask_begin	\
+	-e numa:numa_migratepages_nodemask_end		\
+	-e sched:sched_migrate_task $@

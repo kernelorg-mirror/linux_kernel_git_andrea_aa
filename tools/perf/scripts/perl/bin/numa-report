@@ -1,0 +1,17 @@
+#!/bin/bash
+# description: like numatop, but reads recorded data
+# args: [help]
+NUMATOP="$PERF_EXEC_PATH/scripts/perl/numatop.pl"
+args=
+while [ "$1" ] && ! expr match "$1" '-' >/dev/null; do
+    args="$args $1"
+    shift
+done
+
+# In top mode we can get this info ourselves from sysfs, but in report
+# mode we may be running on a different machine. So we get it from perf
+# with this funny business. (numatop help is like a no-op script)
+cpulists=`perf script $@ -I -s $NUMATOP help 2>/dev/null |
+	  awk '/^#.*cpu list/ {print$2"="$6}'`
+
+perf script $@ -s $NUMATOP 'mode=report' $cpulists $args
