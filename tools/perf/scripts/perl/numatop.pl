@@ -57,10 +57,6 @@ PID		- Thread ID
 PR		- task priority
 S		- [top mode only] task status (as in proc)
 RSS		- [top mode only] resident set size in MB
-N		- [top mode only] NUMA status (requires CONFIG_CPUSETS=y)
-		    C - task has cpu affinity to a subset of cpus
-		    M - task is bound to a subset of nodes
-		    B - task has both cpu affinity and node binding
 NODE		- [top mode only] the node last executed on
 CMIG		- the number of node-node cpu migrations
 PMIG		- the number of node-node page migrations
@@ -386,7 +382,7 @@ sub print_headers
 	}
 
 	printf " %6s %2s %1s %6s %1s %4s %6s %7s %7s/%-5s %7s %-16s\n",
-		'PID', 'PR', 'S', 'RSS', 'N', 'NODE', 'CMIG', 'PMIG',
+		'PID', 'PR', 'S', 'RSS', '', 'NODE', 'CMIG', 'PMIG',
 		'MIGR', 'FAIL', 'QUEUED', 'COMMAND';
 	print '-' x $line_length . "\n";
 }
@@ -452,6 +448,9 @@ sub print_one_pid
 	$fmt .= ' %-16s';
 
 	$rss = ($rss eq '-') ? $rss : int($rss/1024);
+
+	$numa = ''; #FIXME: a kernel bug needs to be fixed before this
+		    #       status is valid
 
 	printf $fmt, $prefix, $pid, $prio, $state, $rss, $numa, $node,
 	       $nr_cpu, $nr_page, $nr_migrated, $nr_failed, $nr_queued, $comm;
