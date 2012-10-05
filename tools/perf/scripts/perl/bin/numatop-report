@@ -1,0 +1,10 @@
+#!/bin/bash
+# description: system-wide numatop
+# args: [help]
+NUMATOP="$PERF_EXEC_PATH/scripts/perl/numatop.pl"
+args=
+while [ "$1" ] && ! expr match "$1" '-' >/dev/null; do
+    args="$args $1"
+    shift
+done
+perf script $@ -s $NUMATOP $args
