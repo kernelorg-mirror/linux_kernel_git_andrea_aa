@@ -328,6 +328,17 @@ void __sched_autonuma_balance(void)
 		/* No need to check our current node. */
 		if (nid == this_nid)
 			continue;
+
+		/*
+		 * Migrating to another NUMA node only makes sense if that
+		 * other node has either a better task weight, or a better
+		 * mm weight. Skip any node that is worse on both counts.
+		 */
+		if (task_numa_weight[nid] <= task_numa_weight[this_nid] &&
+		    mm_numa_weight[nid] <= mm_numa_weight[this_nid])
+			continue;
+
+		/* This node looks promising. Examine it in detail. */
 		for_each_cpu_and(cpu, cpumask_of_node(nid), allowed) {
 			struct mm_autonuma *mma = NULL /* bugcheck */;
 			struct task_autonuma *ta = NULL /* bugcheck */;
