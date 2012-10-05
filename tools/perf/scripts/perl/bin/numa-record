@@ -1,0 +1,7 @@
+#!/bin/bash
+perf record						\
+	-e numa:numa_migratepages_begin			\
+	-e numa:numa_migratepages_end			\
+	-e numa:numa_migratepages_nodemask_begin	\
+	-e numa:numa_migratepages_nodemask_end		\
+	-e sched:sched_migrate_task $@
