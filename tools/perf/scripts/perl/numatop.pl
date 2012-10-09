@@ -129,6 +129,8 @@ if (!$top_mode) {
 	$nlines = 0;
 }
 
+my $anon_pid = -1;
+my $anon_comm = '<no-mm-owner>';
 my (%procinfo, %data);
 my ($runtime, %cpu_to_node);
 my (@begin_node, @begin_nodemask);
@@ -433,7 +435,9 @@ sub print_one_pid
 	my ($ptab, $prefix) = @_;
 	my ($nr_cpu, $nr_page, $nr_queued, $nr_migrated, $nr_failed,
 	    $pid, $comm, $prio, $state, $rss, $numa, $node) = get_data($ptab);
-	my $fmt = '%1s%6u %2s %1s ';
+	my $fmt = '%1s';
+	$fmt .= ($pid eq '-') ? '%6s' : '%6u';
+	$fmt .= ' %2s %1s ';
 	$fmt .= ($rss eq '-') ? '%6s' : '%6u';
 	$fmt .= ' %1s ';
 	$fmt .= ($node eq '-') ? '%4s' : '%4u';
@@ -507,10 +511,10 @@ sub update_tables
 	    $update, @args) = @_;
 
 	if (!$pid) {
-		# without $pid info we assume we're self managed, but
-		# acknowledge that $prio is undefined
-		$pid = $common_pid;
-		$comm = $common_comm;
+		# without $pid info we have to just account to an anonymous
+		# group, which of course doesn't have a priority
+		$pid = $anon_pid;
+		$comm = $anon_comm;
 		$prio = undef;
 	}
 
@@ -632,7 +636,7 @@ sub get_data
 	if (!defined $pid) {
 		return @data;
 	}
-	$data[5] = $pid;
+	$data[5] = ($pid == $anon_pid) ? '-' : $pid;
 	$data[6] = $procinfo{$pid}{comm}	|| '';
 	$data[7] = $procinfo{$pid}{prio}	|| '--';
 	$data[8] = $procinfo{$pid}{State}	|| '-';
@@ -829,7 +833,7 @@ sub __update_task
 	my $pid = shift;
 	my ($fh, $cpus, $mems, $stat, @stat);
 
-	if ($pid == 0) {
+	if ($pid == 0 || $pid == $anon_pid) {
 		$procinfo{$pid}{State} = '-';
 		return;
 	}
