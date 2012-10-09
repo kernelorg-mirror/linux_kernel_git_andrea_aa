@@ -5,39 +5,11 @@
 #define _TRACE_NUMA_H
 
 #include <linux/types.h>
+#include <linux/sched.h>
 #include <linux/nodemask.h>
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
 #include <linux/tracepoint.h>
-
-/*
- * The tracepoint output can be more complete if the kernel is compiled
- * with CONFIG_MM_OWNER and the mm for which pages were migrated is passed
- * to the tracepoint.
- */
-#ifdef CONFIG_MM_OWNER
-#include <linux/sched.h>
-#define __assign_task(entry, mm)					\
-	({								\
-		if (mm) {						\
-			struct task_struct *t = mm->owner;		\
-			memcpy(entry->comm, t->comm, TASK_COMM_LEN);	\
-			entry->pid = t->pid;				\
-			entry->prio = t->prio;				\
-		} else {						\
-			strcpy(entry->comm, "no-mm-info");		\
-			entry->pid = 0;					\
-			entry->prio = 0;				\
-		}							\
-	})
-#else
-#define __assign_task(entry, mm)					\
-	({								\
-		strcpy(entry->comm, "no-mm-owner");			\
-		entry->pid = 0;						\
-		entry->prio = 0;					\
-	})
-#endif
 
 #define __nodemask_copy(dst, __src)					\
 	({								\
@@ -69,7 +41,7 @@
 
 /*
  * trace_numa_migratepages_begin - begin tracepoint for node to node page migration
- * @mm:        pointer to the mm for which pages will be migrated,
+ * @p:         pointer to the task_struct for which pages will be migrated,
  *             or NULL if it's unknown
  * @pagelist:  pointer to the list of pages to be migrated
  * @src:       from node, or -1 if it's unknown
@@ -80,11 +52,11 @@
  */
 TRACE_EVENT(numa_migratepages_begin,
 
-	TP_PROTO(struct mm_struct *mm,
+	TP_PROTO(struct task_struct *p,
 		 struct list_head *pagelist,
 		 int src, int dest),
 
-	TP_ARGS(mm, pagelist, src, dest),
+	TP_ARGS(p, pagelist, src, dest),
 
 	TP_STRUCT__entry(
 		__array(char, comm, TASK_COMM_LEN)
@@ -96,7 +68,11 @@ TRACE_EVENT(numa_migratepages_begin,
 	),
 
 	TP_fast_assign(
-		__assign_task(__entry, mm);
+		if (p) {
+			memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+			__entry->pid = p->pid;
+			__entry->prio = p->prio;
+		}
 		__entry->to_migrate = __count_pages(pagelist);
 		__entry->src = src;
 		__entry->dest = dest;
@@ -109,7 +85,7 @@ TRACE_EVENT(numa_migratepages_begin,
 
 /*
  * trace_numa_migratepages_nodemask_begin - begin tracepoint for node to node page migration
- * @mm:        pointer to the mm for which pages will be migrated,
+ * @p:         pointer to the task_struct for which pages will be migrated,
  *             or NULL if it's unknown
  * @pagelist:  pointer to the list of pages to be migrated
  * @src:       from nodemask, or NULL if it's unknown
@@ -121,11 +97,11 @@ TRACE_EVENT(numa_migratepages_begin,
 
 TRACE_EVENT(numa_migratepages_nodemask_begin,
 
-	TP_PROTO(struct mm_struct *mm,
+	TP_PROTO(struct task_struct *p,
 		 struct list_head *pagelist,
 		 nodemask_t *src, nodemask_t *dest),
 
-	TP_ARGS(mm, pagelist, src, dest),
+	TP_ARGS(p, pagelist, src, dest),
 
 	TP_STRUCT__entry(
 		__array(char, comm, TASK_COMM_LEN)
@@ -140,7 +116,12 @@ TRACE_EVENT(numa_migratepages_nodemask_begin,
 	TP_fast_assign(
 		int srclen, destlen;
 
-		__assign_task(__entry, mm);
+		if (p) {
+			memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
+			__entry->pid = p->pid;
+			__entry->prio = p->prio;
+		}
+
 		__entry->to_migrate = __count_pages(pagelist);
 
 		srclen = __nodemask_copy(__entry->src, src);
@@ -193,7 +174,6 @@ DEFINE_EVENT(numa_migratepages_end_template, numa_migratepages_nodemask_end,
 	TP_ARGS(nr_failed)
 );
 
-#undef __assign_task
 #undef __nodemask_copy
 #undef __count_pages
 #endif /* _TRACE_NUMA_H */
