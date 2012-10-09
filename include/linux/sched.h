@@ -2789,6 +2789,10 @@ static inline void inc_syscw(struct task_struct *tsk)
 #ifdef CONFIG_MM_OWNER
 extern void mm_update_next_owner(struct mm_struct *mm);
 extern void mm_init_owner(struct mm_struct *mm, struct task_struct *p);
+static inline struct task_struct *mm_owner(struct mm_struct *mm)
+{
+	return mm->owner;
+}
 #else
 static inline void mm_update_next_owner(struct mm_struct *mm)
 {
@@ -2796,6 +2800,10 @@ static inline void mm_update_next_owner(struct mm_struct *mm)
 
 static inline void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
 {
+}
+static inline struct task_struct *mm_owner(struct mm_struct *mm)
+{
+	return NULL;
 }
 #endif /* CONFIG_MM_OWNER */
 
