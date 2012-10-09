@@ -41,6 +41,9 @@ static unsigned long pages_scanned;
 static unsigned int migrate_interval_millisecs __read_mostly = 100;
 static unsigned int pages_to_migrate __read_mostly = 128*1024*1024/PAGE_SIZE;
 
+/* sched_autonuma_balance interval */
+unsigned int sched_autonuma_balance_interval_millisecs __read_mostly = 100;
+
 static struct knuma_scand_data {
 	struct list_head mm_head; /* entry: mm->mm_autonuma->mm_node */
 	struct mm_struct *mm;
@@ -1030,6 +1033,7 @@ enum {
 	SYSFS_SCAN_PAGES_ENTRY,
 	SYSFS_MIGRATE_INTERVAL_ENTRY,
 	SYSFS_MIGRATE_PAGES_ENTRY,
+	SYSFS_SCHED_BALANCE_INTERVAL_ENTRY,
 };
 
 #define SYSFS_ENTRY(NAME, SYSFS_TYPE)					\
@@ -1076,6 +1080,9 @@ SYSFS_ENTRY(pages_to_scan, SYSFS_SCAN_PAGES_ENTRY);
 SYSFS_ENTRY(migrate_interval_millisecs, SYSFS_MIGRATE_INTERVAL_ENTRY);
 SYSFS_ENTRY(pages_to_migrate, SYSFS_MIGRATE_PAGES_ENTRY);
 
+SYSFS_ENTRY(sched_autonuma_balance_interval_millisecs,
+	    SYSFS_SCHED_BALANCE_INTERVAL_ENTRY);
+
 #undef SYSFS_ENTRY
 
 #define SYSFS_ENTRY(NAME)					\
@@ -1112,6 +1119,8 @@ static struct attribute *autonuma_attr[] = {
 	&full_scans_attr.attr,
 	&scan_pmd_attr.attr,
 	/* scan end */
+
+	&sched_autonuma_balance_interval_millisecs_attr.attr,
 
 #ifdef CONFIG_DEBUG_VM
 	&sched_load_balance_strict_attr.attr,
