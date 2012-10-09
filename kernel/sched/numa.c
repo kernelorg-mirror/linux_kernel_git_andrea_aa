@@ -223,7 +223,8 @@ void __sched_autonuma_balance(void)
 	long *mm_numa_weight;
 
 	if (time_before_eq(jiffies, task_autonuma->task_jiffies +
-			   msecs_to_jiffies(100)))
+			   msecs_to_jiffies(
+				   sched_autonuma_balance_interval_millisecs)))
 		return;
 	task_autonuma->task_jiffies = jiffies;
 

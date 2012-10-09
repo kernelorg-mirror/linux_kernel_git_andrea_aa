@@ -5,6 +5,7 @@
 
 #ifdef CONFIG_AUTONUMA
 
+extern unsigned int sched_autonuma_balance_interval_millisecs;
 extern void __sched_autonuma_balance(void);
 extern bool sched_autonuma_can_migrate_task(struct task_struct *p,
 					    int strict_numa, int dst_cpu,
