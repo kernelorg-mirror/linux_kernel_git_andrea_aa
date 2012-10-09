@@ -249,7 +249,7 @@ static bool autonuma_migrate_page(struct page *page, int dst_nid,
 
 	if (isolated) {
 		int err;
-		trace_numa_migratepages_begin(current->mm, &migratepages,
+		trace_numa_migratepages_begin(current, &migratepages,
 					      page_nid, dst_nid);
 		err = migrate_pages(&migratepages, alloc_migrate_dst_page,
 				    pgdat->node_id, false, MIGRATE_ASYNC);
