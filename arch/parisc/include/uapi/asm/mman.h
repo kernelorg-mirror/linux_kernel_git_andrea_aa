@@ -66,6 +66,9 @@
 					   overrides the coredump filter bits */
 #define MADV_DODUMP	70		/* Clear the MADV_NODUMP flag */
 
+#define MADV_USERFAULT	71		/* Trigger user faults if not mapped */
+#define MADV_NOUSERFAULT 72		/* Don't trigger user faults */
+
 /* compatibility flags */
 #define MAP_FILE	0
 #define MAP_VARIABLE	0

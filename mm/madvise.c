@@ -93,6 +93,21 @@ static long madvise_behavior(struct vm_area_struct *vma,
 		if (error)
 			goto out;
 		break;
+	case MADV_USERFAULT:
+		if (vma->vm_ops) {
+			error = -EINVAL;
+			goto out;
+		}
+		new_flags |= VM_USERFAULT;
+		break;
+	case MADV_NOUSERFAULT:
+		if (vma->vm_ops) {
+			WARN_ON(new_flags & VM_USERFAULT);
+			error = -EINVAL;
+			goto out;
+		}
+		new_flags &= ~VM_USERFAULT;
+		break;
 	}
 
 	if (new_flags == vma->vm_flags) {
@@ -408,6 +423,8 @@ madvise_behavior_valid(int behavior)
 	case MADV_HUGEPAGE:
 	case MADV_NOHUGEPAGE:
 #endif
+	case MADV_USERFAULT:
+	case MADV_NOUSERFAULT:
 	case MADV_DONTDUMP:
 	case MADV_DODUMP:
 		return 1;
