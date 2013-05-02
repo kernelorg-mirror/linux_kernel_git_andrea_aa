@@ -33,6 +33,13 @@ extern int move_huge_pmd(struct vm_area_struct *vma,
 extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
 			unsigned long addr, pgprot_t newprot,
 			int prot_numa);
+extern int remap_anon_pages_huge_pmd(struct mm_struct *mm,
+				     pmd_t *dst_pmd, pmd_t *src_pmd,
+				     pmd_t dst_pmdval,
+				     struct vm_area_struct *dst_vma,
+				     struct vm_area_struct *src_vma,
+				     unsigned long dst_addr,
+				     unsigned long src_addr);
 
 enum transparent_hugepage_flag {
 	TRANSPARENT_HUGEPAGE_FLAG,

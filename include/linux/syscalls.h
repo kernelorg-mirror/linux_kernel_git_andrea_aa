@@ -452,6 +452,10 @@ asmlinkage long sys_mremap(unsigned long addr,
 asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
 			unsigned long prot, unsigned long pgoff,
 			unsigned long flags);
+asmlinkage long sys_remap_anon_pages(unsigned long dst_start,
+				     unsigned long src_start,
+				     unsigned long len,
+				     unsigned long flags);
 asmlinkage long sys_msync(unsigned long start, size_t len, int flags);
 asmlinkage long sys_fadvise64(int fd, loff_t offset, size_t len, int advice);
 asmlinkage long sys_fadvise64_64(int fd, loff_t offset, loff_t len, int advice);
