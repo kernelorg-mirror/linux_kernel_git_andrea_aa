@@ -519,11 +519,6 @@ struct zone {
 	int			compact_order_failed;
 #endif
 
-#if defined CONFIG_COMPACTION || defined CONFIG_CMA
-	/* Set to true when the PG_migrate_skip bits should be cleared */
-	bool			compact_blockskip_flush;
-#endif
-
 	ZONE_PADDING(_pad3_)
 	/* Zone statistics */
 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
