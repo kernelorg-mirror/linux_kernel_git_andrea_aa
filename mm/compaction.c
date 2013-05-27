@@ -1643,13 +1643,15 @@ void compact_pgdat(pg_data_t *pgdat, int order)
 
 static void compact_node(int nid)
 {
+	pg_data_t *pgdat = NODE_DATA(nid);
 	struct compact_control cc = {
 		.order = -1,
 		.mode = MIGRATE_SYNC,
 		.ignore_skip_hint = true,
 	};
 
-	__compact_pgdat(NODE_DATA(nid), &cc);
+	reset_isolation_suitable(pgdat);
+	__compact_pgdat(pgdat, &cc);
 }
 
 /* Compact all nodes in the system */
