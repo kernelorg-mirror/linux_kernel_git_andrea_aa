@@ -2212,7 +2212,10 @@ zonelist_scan:
 				!zlc_zone_worth_trying(zonelist, z, allowednodes))
 				continue;
 
-			ret = zone_reclaim(zone, gfp_mask, order);
+			ret = zone_reclaim(ac->preferred_zone, zone, gfp_mask,
+					   order,
+					   mark, alloc_flags,
+					   ac->classzone_idx);
 			switch (ret) {
 			case ZONE_RECLAIM_NOSCAN:
 				/* did not scan */
