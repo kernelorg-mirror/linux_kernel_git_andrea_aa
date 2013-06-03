@@ -1440,7 +1440,7 @@ out:
 	return ret;
 }
 
-static unsigned long compact_zone_order(struct zone *zone, int order,
+unsigned long compact_zone_order(struct zone *zone, int order,
 		gfp_t gfp_mask, enum migrate_mode mode, int *contended,
 		int alloc_flags, int classzone_idx)
 {
