@@ -23,6 +23,7 @@
 #include <linux/pagemap.h>
 #include <linux/migrate.h>
 #include <linux/hashtable.h>
+#include <linux/userfaultfd.h>
 
 #include <asm/tlb.h>
 #include <asm/pgalloc.h>
@@ -713,7 +714,7 @@ static inline pmd_t mk_huge_pmd(struct page *page, pgprot_t prot)
 static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 					struct vm_area_struct *vma,
 					unsigned long haddr, pmd_t *pmd,
-					struct page *page)
+					struct page *page, unsigned int flags)
 {
 	struct mem_cgroup *memcg;
 	pgtable_t pgtable;
@@ -753,11 +754,15 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 
 		/* Deliver the page fault to userland */
 		if (vma->vm_flags & VM_USERFAULT) {
+			int ret;
+
 			spin_unlock(ptl);
 			mem_cgroup_cancel_charge(page, memcg);
 			put_page(page);
 			pte_free(mm, pgtable);
-			return VM_FAULT_SIGBUS;
+			ret = handle_userfault(vma, haddr, flags);
+			VM_BUG_ON(ret & VM_FAULT_FALLBACK);
+			return ret;
 		}
 
 		entry = mk_huge_pmd(page, vma->vm_page_prot);
@@ -837,16 +842,19 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		ret = 0;
 		set = false;
 		if (pmd_none(*pmd)) {
-			if (vma->vm_flags & VM_USERFAULT)
-				ret = VM_FAULT_SIGBUS;
-			else {
+			if (vma->vm_flags & VM_USERFAULT) {
+				spin_unlock(ptl);
+				ret = handle_userfault(vma, haddr, flags);
+				VM_BUG_ON(ret & VM_FAULT_FALLBACK);
+			} else {
 				set_huge_zero_page(pgtable, mm, vma,
 						   haddr, pmd,
 						   zero_page);
+				spin_unlock(ptl);
 				set = true;
 			}
-		}
-		spin_unlock(ptl);
+		} else
+			spin_unlock(ptl);
 		if (!set) {
 			pte_free(mm, pgtable);
 			put_huge_zero_page();
@@ -859,7 +867,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		count_vm_event(THP_FAULT_FALLBACK);
 		return VM_FAULT_FALLBACK;
 	}
-	return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page);
+	return __do_huge_pmd_anonymous_page(mm, vma, haddr, pmd, page, flags);
 }
 
 int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,

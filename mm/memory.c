@@ -61,6 +61,7 @@
 #include <linux/string.h>
 #include <linux/dma-debug.h>
 #include <linux/debugfs.h>
+#include <linux/userfaultfd.h>
 
 #include <asm/io.h>
 #include <asm/pgalloc.h>
@@ -2650,7 +2651,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		/* Deliver the page fault to userland, check inside PT lock */
 		if (vma->vm_flags & VM_USERFAULT) {
 			pte_unmap_unlock(page_table, ptl);
-			return VM_FAULT_SIGBUS;
+			return handle_userfault(vma, address, flags);
 		}
 		goto setpte;
 	}
@@ -2684,7 +2685,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		pte_unmap_unlock(page_table, ptl);
 		mem_cgroup_cancel_charge(page, memcg);
 		page_cache_release(page);
-		return VM_FAULT_SIGBUS;
+		return handle_userfault(vma, address, flags);
 	}
 
 	inc_mm_counter_fast(mm, MM_ANONPAGES);

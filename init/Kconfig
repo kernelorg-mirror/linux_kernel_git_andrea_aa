@@ -1564,6 +1564,18 @@ config ADVISE_SYSCALLS
 	  applications use these syscalls, you can disable this option to save
 	  space.
 
+config USERFAULTFD
+	bool "Enable userfaultfd() system call"
+	select ANON_INODES
+	default y
+	depends on MMU && ADVISE_SYSCALLS
+	help
+	  Enable the userfaultfd() system call that allows to trap and
+	  handle page faults in userland. userfaultfd() can only engage
+	  on requires virtual ranges marked with madvise(MADV_USERFAULT).
+
+	  If unsure, say Y.
+
 config PCI_QUIRKS
 	default y
 	bool "Enable PCI quirk workarounds" if EXPERT
