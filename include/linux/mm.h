@@ -1433,6 +1433,10 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
 }
 #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
 
+/* mm/fremap.c */
+extern void double_pt_lock(spinlock_t *ptl1, spinlock_t *ptl2);
+extern void double_pt_unlock(spinlock_t *ptl1, spinlock_t *ptl2);
+
 #if USE_SPLIT_PTE_PTLOCKS
 #if ALLOC_SPLIT_PTLOCKS
 void __init ptlock_cache_init(void);
