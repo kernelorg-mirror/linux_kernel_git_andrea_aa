@@ -458,9 +458,7 @@ static ssize_t userfaultfd_write(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	struct userfaultfd_ctx *ctx = file->private_data;
-	ssize_t res;
 	__u64 range[2];
-	DECLARE_WAITQUEUE(wait, current);
 
 	if (ctx->state == USERFAULTFD_STATE_ASK_PROTOCOL) {
 		__u64 protocol;
@@ -488,34 +486,12 @@ static ssize_t userfaultfd_write(struct file *file, const char __user *buf,
 	if (range[0] >= range[1])
 		return -ERANGE;
 
-	spin_lock(&ctx->fd_wqh.lock);
-	__add_wait_queue(&ctx->fd_wqh, &wait);
-	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		/* always take the fd_wqh lock before the fault_wqh lock */
-		if (find_userfault(ctx, NULL, POLLOUT)) {
-			if (!wake_userfault(ctx, range)) {
-				res = sizeof(range);
-				break;
-			}
-		}
-		if (signal_pending(current)) {
-			res = -ERESTARTSYS;
-			break;
-		}
-		if (file->f_flags & O_NONBLOCK) {
-			res = -EAGAIN;
-			break;
-		}
-		spin_unlock(&ctx->fd_wqh.lock);
-		schedule();
-		spin_lock(&ctx->fd_wqh.lock);
-	}
-	__remove_wait_queue(&ctx->fd_wqh, &wait);
-	__set_current_state(TASK_RUNNING);
-	spin_unlock(&ctx->fd_wqh.lock);
+	/* always take the fd_wqh lock before the fault_wqh lock */
+	if (find_userfault(ctx, NULL, POLLOUT))
+		if (!wake_userfault(ctx, range))
+			return sizeof(range);
 
-	return res;
+	return -ENOENT;
 }
 
 #ifdef CONFIG_PROC_FS
