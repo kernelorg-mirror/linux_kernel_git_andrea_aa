@@ -2344,11 +2344,22 @@ should_alloc_retry(gfp_t gfp_mask, unsigned int order,
 		return 0;
 
 	/*
-	 * In this implementation, order <= PAGE_ALLOC_COSTLY_ORDER
-	 * means __GFP_NOFAIL, but that may not be true in other
-	 * implementations.
+	 * In this implementation order <= PAGE_ALLOC_COSTLY_ORDER
+	 * &&__GFP_FS means __GFP_NOFAIL (until the OOM killer sets
+	 * TIF_MEMDIE, then it will fail unlike a real __GFP_NOFAIL),
+	 * but that may not be true in other implementations. This
+	 * behavior increases the accuracy of the OOM killer so that
+	 * there will not be spurious VM_FAULT_OOM errors or other
+	 * allocation failures until the OOM killed task releases its
+	 * memory. Not failing allocations that can enter the
+	 * filesystems (which means the holder is very likely holding
+	 * uninterruptible locks) poses a great risk of livelock (like
+	 * if ext4_writepages invoked by a kernel thread doing
+	 * writeback_sb_inodes is not allowed to fail while holding
+	 * the PG_lock and in turn preventing the OOM killer victim
+	 * task to exit).
 	 */
-	if (order <= PAGE_ALLOC_COSTLY_ORDER)
+	if (order <= PAGE_ALLOC_COSTLY_ORDER && (gfp_mask & __GFP_FS))
 		return 1;
 
 	/*
