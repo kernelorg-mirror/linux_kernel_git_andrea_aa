@@ -2375,8 +2375,27 @@ should_alloc_retry(gfp_t gfp_mask, unsigned int order,
 	return 0;
 }
 
+static inline int gfp_to_alloc_flags(gfp_t gfp_mask);
+
+static void gfp_nofail_emergency(gfp_t *gfp_mask, int *alloc_flags,
+				 unsigned int order)
+{
+	/*
+	 * If we reached an out of memory condition in the context of
+	 * a __GFP_NOFAIL (in turn livelock prone) allocation try to
+	 * give access to the emergency pools, otherwise we could
+	 * livelock.
+	 */
+	if ((*gfp_mask & __GFP_NOFAIL) && !order) {
+		*gfp_mask |= __GFP_MEMALLOC;
+		*gfp_mask &= ~__GFP_NOMEMALLOC;
+		*alloc_flags = gfp_to_alloc_flags(*gfp_mask);
+		VM_BUG_ON(!(*alloc_flags & ALLOC_NO_WATERMARKS));
+	}
+}
+
 static inline struct page *
-__alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+__alloc_pages_may_oom(gfp_t *gfp_mask, unsigned int order, int *alloc_flags,
 	const struct alloc_context *ac, unsigned long *did_some_progress)
 {
 	struct page *page;
@@ -2387,7 +2406,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 	 * Acquire the per-zone oom lock for each zone.  If that
 	 * fails, somebody else is making progress for us.
 	 */
-	if (!oom_zonelist_trylock(ac->zonelist, gfp_mask)) {
+	if (!oom_zonelist_trylock(ac->zonelist, *gfp_mask)) {
 		*did_some_progress = 1;
 		schedule_timeout_uninterruptible(1);
 		return NULL;
@@ -2398,12 +2417,12 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 	 * here, this is only to catch a parallel oom killing, we must fail if
 	 * we're still under heavy pressure.
 	 */
-	page = get_page_from_freelist(gfp_mask | __GFP_HARDWALL, order,
+	page = get_page_from_freelist(*gfp_mask | __GFP_HARDWALL, order,
 					ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
 	if (page)
 		goto out;
 
-	if (!(gfp_mask & __GFP_NOFAIL)) {
+	if (!(*gfp_mask & __GFP_NOFAIL)) {
 		/* Coredumps can quickly deplete all memory reserves */
 		if (current->flags & PF_DUMPCORE)
 			goto out;
@@ -2414,7 +2433,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 		if (ac->high_zoneidx < ZONE_NORMAL)
 			goto out;
 		/* The OOM killer does not compensate for light reclaim */
-		if (!(gfp_mask & __GFP_FS)) {
+		if (!(*gfp_mask & __GFP_FS)) {
 			/*
 			 * XXX: Page reclaim didn't yield anything,
 			 * and the OOM killer can't be invoked, but
@@ -2424,15 +2443,16 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
 			goto out;
 		}
 		/* The OOM killer may not free memory on a specific node */
-		if (gfp_mask & __GFP_THISNODE)
+		if (*gfp_mask & __GFP_THISNODE)
 			goto out;
-	}
+	} else
+		gfp_nofail_emergency(gfp_mask, alloc_flags, order);
 	/* Exhausted what can be done so it's blamo time */
-	if (out_of_memory(ac->zonelist, gfp_mask, order, ac->nodemask, false)
-			|| WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL))
+	if (out_of_memory(ac->zonelist, *gfp_mask, order, ac->nodemask, false)
+			|| WARN_ON_ONCE(*gfp_mask & __GFP_NOFAIL))
 		*did_some_progress = 1;
 out:
-	oom_zonelist_unlock(ac->zonelist, gfp_mask);
+	oom_zonelist_unlock(ac->zonelist, *gfp_mask);
 	return page;
 }
 
@@ -2815,8 +2835,9 @@ retry:
 		 * start OOM killing tasks.
 		 */
 		if (!did_some_progress) {
-			page = __alloc_pages_may_oom(gfp_mask, order, ac,
-							&did_some_progress);
+			page = __alloc_pages_may_oom(&gfp_mask, order,
+						     &alloc_flags, ac,
+						     &did_some_progress);
 			if (page)
 				goto got_pg;
 			if (!did_some_progress)
