@@ -2359,7 +2359,7 @@ should_alloc_retry(gfp_t gfp_mask, unsigned int order,
 	 * the PG_lock and in turn preventing the OOM killer victim
 	 * task to exit).
 	 */
-	if (order <= PAGE_ALLOC_COSTLY_ORDER && (gfp_mask & __GFP_FS))
+	if (order <= PAGE_ALLOC_COSTLY_ORDER)
 		return 1;
 
 	/*
@@ -2377,16 +2377,17 @@ should_alloc_retry(gfp_t gfp_mask, unsigned int order,
 
 static inline int gfp_to_alloc_flags(gfp_t gfp_mask);
 
-static void gfp_nofail_emergency(gfp_t *gfp_mask, int *alloc_flags,
-				 unsigned int order)
+static void gfp_emergency(gfp_t *gfp_mask, int *alloc_flags,
+			  unsigned int order)
 {
 	/*
 	 * If we reached an out of memory condition in the context of
-	 * a __GFP_NOFAIL (in turn livelock prone) allocation try to
-	 * give access to the emergency pools, otherwise we could
-	 * livelock.
+	 * a __GFP_NOFAIL or a !__GFP_FS (in turn livelock prone)
+	 * allocation try to give access to the emergency pools,
+	 * otherwise we could livelock.
 	 */
-	if ((*gfp_mask & __GFP_NOFAIL) && !order) {
+	if (((*gfp_mask & __GFP_NOFAIL) || !(*gfp_mask & __GFP_FS)) &&
+	    !order) {
 		*gfp_mask |= __GFP_MEMALLOC;
 		*gfp_mask &= ~__GFP_NOMEMALLOC;
 		*alloc_flags = gfp_to_alloc_flags(*gfp_mask);
@@ -2434,6 +2435,7 @@ __alloc_pages_may_oom(gfp_t *gfp_mask, unsigned int order, int *alloc_flags,
 			goto out;
 		/* The OOM killer does not compensate for light reclaim */
 		if (!(*gfp_mask & __GFP_FS)) {
+			gfp_emergency(gfp_mask, alloc_flags, order);
 			/*
 			 * XXX: Page reclaim didn't yield anything,
 			 * and the OOM killer can't be invoked, but
@@ -2446,7 +2448,7 @@ __alloc_pages_may_oom(gfp_t *gfp_mask, unsigned int order, int *alloc_flags,
 		if (*gfp_mask & __GFP_THISNODE)
 			goto out;
 	} else
-		gfp_nofail_emergency(gfp_mask, alloc_flags, order);
+		gfp_emergency(gfp_mask, alloc_flags, order);
 	/* Exhausted what can be done so it's blamo time */
 	if (out_of_memory(ac->zonelist, *gfp_mask, order, ac->nodemask, false)
 			|| WARN_ON_ONCE(*gfp_mask & __GFP_NOFAIL))
