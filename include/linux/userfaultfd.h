@@ -29,14 +29,27 @@
 int handle_userfault(struct vm_area_struct *vma, unsigned long address,
 		     unsigned int flags);
 
+static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
+					struct vm_userfaultfd_ctx vm_ctx)
+{
+	return vma->vm_userfaultfd_ctx.ctx == vm_ctx.ctx;
+}
+
 #else /* CONFIG_USERFAULTFD */
 
-static int handle_userfault(struct vm_area_struct *vma, unsigned long address,
-			    unsigned int flags)
+static inline int handle_userfault(struct vm_area_struct *vma,
+				   unsigned long address,
+				   unsigned int flags)
 {
 	return VM_FAULT_SIGBUS;
 }
 
-#endif
+static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
+					struct vm_userfaultfd_ctx vm_ctx)
+{
+	return true;
+}
+
+#endif /* CONFIG_USERFAULTFD */
 
 #endif /* _LINUX_USERFAULTFD_H */
