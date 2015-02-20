@@ -15,7 +15,6 @@
 #define __ASM_S390_SYSINFO_H
 
 #include <asm/bitsperlong.h>
-#include <linux/uuid.h>
 
 struct sysinfo_1_1_1 {
 	unsigned char p:1;
@@ -117,13 +116,10 @@ struct sysinfo_3_2_2 {
 		char name[8];
 		unsigned int caf;
 		char cpi[16];
-		char reserved_1[3];
-		char ext_name_encoding;
-		unsigned int reserved_2;
-		uuid_be uuid;
+		char reserved_1[24];
+
 	} vm[8];
-	char reserved_3[1504];
-	char ext_names[8][256];
+	char reserved_544[3552];
 };
 
 extern int topology_max_mnest;

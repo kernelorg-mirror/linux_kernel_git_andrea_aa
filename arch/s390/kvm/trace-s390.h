@@ -209,21 +209,19 @@ TRACE_EVENT(kvm_s390_request_resets,
  * Trace point for a vcpu's stop requests.
  */
 TRACE_EVENT(kvm_s390_stop_request,
-	    TP_PROTO(unsigned char stop_irq, unsigned char flags),
-	    TP_ARGS(stop_irq, flags),
+	    TP_PROTO(unsigned int action_bits),
+	    TP_ARGS(action_bits),
 
 	    TP_STRUCT__entry(
-		    __field(unsigned char, stop_irq)
-		    __field(unsigned char, flags)
+		    __field(unsigned int, action_bits)
 		    ),
 
 	    TP_fast_assign(
-		    __entry->stop_irq = stop_irq;
-		    __entry->flags = flags;
+		    __entry->action_bits = action_bits;
 		    ),
 
-	    TP_printk("stop request, stop irq = %u, flags = %08x",
-		      __entry->stop_irq, __entry->flags)
+	    TP_printk("stop request, action_bits = %08x",
+		      __entry->action_bits)
 	);
 
 
