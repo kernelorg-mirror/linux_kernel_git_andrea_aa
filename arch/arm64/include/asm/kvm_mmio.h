@@ -40,7 +40,6 @@ struct kvm_exit_mmio {
 	u8		data[8];
 	u32		len;
 	bool		is_write;
-	void		*private;
 };
 
 static inline void kvm_prepare_mmio(struct kvm_run *run,

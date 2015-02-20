@@ -14,7 +14,6 @@ struct kvm_timer {
 	u32 timer_mode;
 	u32 timer_mode_mask;
 	u64 tscdeadline;
-	u64 expired_tscdeadline;
 	atomic_t pending;			/* accumulated triggered timers */
 };
 
@@ -57,8 +56,9 @@ u64 kvm_lapic_get_base(struct kvm_vcpu *vcpu);
 void kvm_apic_set_version(struct kvm_vcpu *vcpu);
 
 void kvm_apic_update_tmr(struct kvm_vcpu *vcpu, u32 *tmr);
-void __kvm_apic_update_irr(u32 *pir, void *regs);
 void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir);
+int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 dest);
+int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda);
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
 		unsigned long *dest_map);
 int kvm_apic_local_deliver(struct kvm_lapic *apic, int lvt_type);
@@ -169,7 +169,5 @@ static inline bool kvm_apic_has_events(struct kvm_vcpu *vcpu)
 }
 
 bool kvm_apic_pending_eoi(struct kvm_vcpu *vcpu, int vector);
-
-void wait_lapic_expire(struct kvm_vcpu *vcpu);
 
 #endif

@@ -33,7 +33,6 @@
 #include <asm/page.h>
 #include <asm/current.h>
 #include <asm/apicdef.h>
-#include <asm/delay.h>
 #include <linux/atomic.h>
 #include <linux/jump_label.h>
 #include "kvm_cache_regs.h"
@@ -328,23 +327,16 @@ static u8 count_vectors(void *bitmap)
 	return count;
 }
 
-void __kvm_apic_update_irr(u32 *pir, void *regs)
+void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
 {
 	u32 i, pir_val;
+	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	for (i = 0; i <= 7; i++) {
 		pir_val = xchg(&pir[i], 0);
 		if (pir_val)
-			*((u32 *)(regs + APIC_IRR + i * 0x10)) |= pir_val;
+			*((u32 *)(apic->regs + APIC_IRR + i * 0x10)) |= pir_val;
 	}
-}
-EXPORT_SYMBOL_GPL(__kvm_apic_update_irr);
-
-void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
-{
-	struct kvm_lapic *apic = vcpu->arch.apic;
-
-	__kvm_apic_update_irr(pir, apic->regs);
 }
 EXPORT_SYMBOL_GPL(kvm_apic_update_irr);
 
@@ -413,7 +405,7 @@ static inline void apic_set_isr(int vec, struct kvm_lapic *apic)
 	 * because the processor can modify ISR under the hood.  Instead
 	 * just set SVI.
 	 */
-	if (unlikely(kvm_x86_ops->hwapic_isr_update))
+	if (unlikely(kvm_apic_vid_enabled(vcpu->kvm)))
 		kvm_x86_ops->hwapic_isr_update(vcpu->kvm, vec);
 	else {
 		++apic->isr_count;
@@ -461,7 +453,7 @@ static inline void apic_clear_isr(int vec, struct kvm_lapic *apic)
 	 * on the other hand isr_count and highest_isr_cache are unused
 	 * and must be left alone.
 	 */
-	if (unlikely(kvm_x86_ops->hwapic_isr_update))
+	if (unlikely(kvm_apic_vid_enabled(vcpu->kvm)))
 		kvm_x86_ops->hwapic_isr_update(vcpu->kvm,
 					       apic_find_highest_isr(apic));
 	else {
@@ -588,48 +580,55 @@ static void apic_set_tpr(struct kvm_lapic *apic, u32 tpr)
 	apic_update_ppr(apic);
 }
 
-static bool kvm_apic_broadcast(struct kvm_lapic *apic, u32 dest)
+static int kvm_apic_broadcast(struct kvm_lapic *apic, u32 dest)
 {
 	return dest == (apic_x2apic_mode(apic) ?
 			X2APIC_BROADCAST : APIC_BROADCAST);
 }
 
-static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 dest)
+int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 dest)
 {
 	return kvm_apic_id(apic) == dest || kvm_apic_broadcast(apic, dest);
 }
 
-static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
+int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
 {
+	int result = 0;
 	u32 logical_id;
 
 	if (kvm_apic_broadcast(apic, mda))
-		return true;
+		return 1;
 
-	logical_id = kvm_apic_get_reg(apic, APIC_LDR);
+	if (apic_x2apic_mode(apic)) {
+		logical_id = kvm_apic_get_reg(apic, APIC_LDR);
+		return logical_id & mda;
+	}
 
-	if (apic_x2apic_mode(apic))
-		return ((logical_id >> 16) == (mda >> 16))
-		       && (logical_id & mda & 0xffff) != 0;
-
-	logical_id = GET_APIC_LOGICAL_ID(logical_id);
+	logical_id = GET_APIC_LOGICAL_ID(kvm_apic_get_reg(apic, APIC_LDR));
 
 	switch (kvm_apic_get_reg(apic, APIC_DFR)) {
 	case APIC_DFR_FLAT:
-		return (logical_id & mda) != 0;
+		if (logical_id & mda)
+			result = 1;
+		break;
 	case APIC_DFR_CLUSTER:
-		return ((logical_id >> 4) == (mda >> 4))
-		       && (logical_id & mda & 0xf) != 0;
+		if (((logical_id >> 4) == (mda >> 0x4))
+		    && (logical_id & mda & 0xf))
+			result = 1;
+		break;
 	default:
 		apic_debug("Bad DFR vcpu %d: %08x\n",
 			   apic->vcpu->vcpu_id, kvm_apic_get_reg(apic, APIC_DFR));
-		return false;
+		break;
 	}
+
+	return result;
 }
 
-bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
+int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 			   int short_hand, unsigned int dest, int dest_mode)
 {
+	int result = 0;
 	struct kvm_lapic *target = vcpu->arch.apic;
 
 	apic_debug("target %p, source %p, dest 0x%x, "
@@ -639,21 +638,29 @@ bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 	ASSERT(target);
 	switch (short_hand) {
 	case APIC_DEST_NOSHORT:
-		if (dest_mode == APIC_DEST_PHYSICAL)
-			return kvm_apic_match_physical_addr(target, dest);
+		if (dest_mode == 0)
+			/* Physical mode. */
+			result = kvm_apic_match_physical_addr(target, dest);
 		else
-			return kvm_apic_match_logical_addr(target, dest);
+			/* Logical mode. */
+			result = kvm_apic_match_logical_addr(target, dest);
+		break;
 	case APIC_DEST_SELF:
-		return target == source;
+		result = (target == source);
+		break;
 	case APIC_DEST_ALLINC:
-		return true;
+		result = 1;
+		break;
 	case APIC_DEST_ALLBUT:
-		return target != source;
+		result = (target != source);
+		break;
 	default:
 		apic_debug("kvm: apic: Bad dest shorthand value %x\n",
 			   short_hand);
-		return false;
+		break;
 	}
+
+	return result;
 }
 
 bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
@@ -686,7 +693,7 @@ bool kvm_irq_delivery_to_apic_fast(struct kvm *kvm, struct kvm_lapic *src,
 
 	ret = true;
 
-	if (irq->dest_mode == APIC_DEST_PHYSICAL) {
+	if (irq->dest_mode == 0) { /* physical mode */
 		if (irq->dest_id >= ARRAY_SIZE(map->phys_map))
 			goto out;
 
@@ -1069,72 +1076,25 @@ static void apic_timer_expired(struct kvm_lapic *apic)
 {
 	struct kvm_vcpu *vcpu = apic->vcpu;
 	wait_queue_head_t *q = &vcpu->wq;
-	struct kvm_timer *ktimer = &apic->lapic_timer;
 
+	/*
+	 * Note: KVM_REQ_PENDING_TIMER is implicitly checked in
+	 * vcpu_enter_guest.
+	 */
 	if (atomic_read(&apic->lapic_timer.pending))
 		return;
 
 	atomic_inc(&apic->lapic_timer.pending);
-	kvm_set_pending_timer(vcpu);
+	/* FIXME: this code should not know anything about vcpus */
+	kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
 
 	if (waitqueue_active(q))
 		wake_up_interruptible(q);
-
-	if (apic_lvtt_tscdeadline(apic))
-		ktimer->expired_tscdeadline = ktimer->tscdeadline;
-}
-
-/*
- * On APICv, this test will cause a busy wait
- * during a higher-priority task.
- */
-
-static bool lapic_timer_int_injected(struct kvm_vcpu *vcpu)
-{
-	struct kvm_lapic *apic = vcpu->arch.apic;
-	u32 reg = kvm_apic_get_reg(apic, APIC_LVTT);
-
-	if (kvm_apic_hw_enabled(apic)) {
-		int vec = reg & APIC_VECTOR_MASK;
-		void *bitmap = apic->regs + APIC_ISR;
-
-		if (kvm_x86_ops->deliver_posted_interrupt)
-			bitmap = apic->regs + APIC_IRR;
-
-		if (apic_test_vector(vec, bitmap))
-			return true;
-	}
-	return false;
-}
-
-void wait_lapic_expire(struct kvm_vcpu *vcpu)
-{
-	struct kvm_lapic *apic = vcpu->arch.apic;
-	u64 guest_tsc, tsc_deadline;
-
-	if (!kvm_vcpu_has_lapic(vcpu))
-		return;
-
-	if (apic->lapic_timer.expired_tscdeadline == 0)
-		return;
-
-	if (!lapic_timer_int_injected(vcpu))
-		return;
-
-	tsc_deadline = apic->lapic_timer.expired_tscdeadline;
-	apic->lapic_timer.expired_tscdeadline = 0;
-	guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu, native_read_tsc());
-	trace_kvm_wait_lapic_expire(vcpu->vcpu_id, guest_tsc - tsc_deadline);
-
-	/* __delay is delay_tsc whenever the hardware has TSC, thus always.  */
-	if (guest_tsc < tsc_deadline)
-		__delay(tsc_deadline - guest_tsc);
 }
 
 static void start_apic_timer(struct kvm_lapic *apic)
 {
 	ktime_t now;
-
 	atomic_set(&apic->lapic_timer.pending, 0);
 
 	if (apic_lvtt_period(apic) || apic_lvtt_oneshot(apic)) {
@@ -1180,7 +1140,6 @@ static void start_apic_timer(struct kvm_lapic *apic)
 		/* lapic timer in tsc deadline mode */
 		u64 guest_tsc, tscdeadline = apic->lapic_timer.tscdeadline;
 		u64 ns = 0;
-		ktime_t expire;
 		struct kvm_vcpu *vcpu = apic->vcpu;
 		unsigned long this_tsc_khz = vcpu->arch.virtual_tsc_khz;
 		unsigned long flags;
@@ -1195,10 +1154,8 @@ static void start_apic_timer(struct kvm_lapic *apic)
 		if (likely(tscdeadline > guest_tsc)) {
 			ns = (tscdeadline - guest_tsc) * 1000000ULL;
 			do_div(ns, this_tsc_khz);
-			expire = ktime_add_ns(now, ns);
-			expire = ktime_sub_ns(expire, lapic_timer_advance_ns);
 			hrtimer_start(&apic->lapic_timer.timer,
-				      expire, HRTIMER_MODE_ABS);
+				ktime_add_ns(now, ns), HRTIMER_MODE_ABS);
 		} else
 			apic_timer_expired(apic);
 
@@ -1788,9 +1745,7 @@ void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu,
 	if (kvm_x86_ops->hwapic_irr_update)
 		kvm_x86_ops->hwapic_irr_update(vcpu,
 				apic_find_highest_irr(apic));
-	if (unlikely(kvm_x86_ops->hwapic_isr_update))
-		kvm_x86_ops->hwapic_isr_update(vcpu->kvm,
-				apic_find_highest_isr(apic));
+	kvm_x86_ops->hwapic_isr_update(vcpu->kvm, apic_find_highest_isr(apic));
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	kvm_rtc_eoi_tracking_restore_one(vcpu);
 }
