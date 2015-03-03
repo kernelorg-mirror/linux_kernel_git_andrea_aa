@@ -1,0 +1,97 @@
+= Userfaultfd =
+
+== Objective ==
+
+Userfaults allow the implementation of on-demand paging from userland
+and more generally they allow userland to take control various memory
+page faults, something otherwise only the kernel code could do.
+
+For example userfaults allows a proper and more optimal implementation
+of the PROT_NONE+SIGSEGV trick.
+
+== Design ==
+
+Userfaults are delivered and resolved through the userfaultfd syscall.
+
+The userfaultfd (aside from registering and unregistering virtual
+memory ranges) provides two primary functionalities:
+
+1) read/POLLIN protocol to notify a userland thread of the faults
+   happening
+
+2) various UFFDIO_* ioctls that can manage the virtual memory regions
+   registered in the userfaultfd that allows userland to efficiently
+   resolve the userfaults it receives via 1) or to manage the virtual
+   memory in the background
+
+The real advantage of userfaults if compared to regular virtual memory
+management of mremap/mprotect is that the userfaults in all their
+operations never involve heavyweight structures like vmas (in fact the
+userfaultfd runtime load never takes the mmap_sem for writing).
+
+Vmas are not suitable for page- (or hugepage) granular fault tracking
+when dealing with virtual address spaces that could span
+Terabytes. Too many vmas would be needed for that.
+
+The userfaultfd once opened by invoking the syscall, can also be
+passed using unix domain sockets to a manager process, so the same
+manager process could handle the userfaults of a multitude of
+different processes without them being aware about what is going on
+(well of course unless they later try to use the userfaultfd
+themselves on the same region the manager is already tracking, which
+is a corner case that would currently return -EBUSY).
+
+== API ==
+
+When first opened the userfaultfd must be enabled invoking the
+UFFDIO_API ioctl specifying a uffdio_api.api value set to UFFD_API
+which will specify the read/POLLIN protocol userland intends to speak
+on the UFFD. The UFFDIO_API ioctl if successful (i.e. if the requested
+uffdio_api.api is spoken also by the running kernel), will return into
+uffdio_api.bits and uffdio_api.ioctls two 64bit bitmasks of
+respectively the activated feature bits below PAGE_SHIFT in the
+userfault addresses returned by read(2) and the generic ioctl
+available.
+
+Once the userfaultfd has been enabled the UFFDIO_REGISTER ioctl should
+be invoked (if present in the returned uffdio_api.ioctls bitmask) to
+register a memory range in the userfaultfd by setting the
+uffdio_register structure accordingly. The uffdio_register.mode
+bitmask will specify to the kernel which kind of faults to track for
+the range (UFFDIO_REGISTER_MODE_MISSING would track missing
+pages). The UFFDIO_REGISTER ioctl will return the
+uffdio_register.ioctls bitmask of ioctls that are suitable to resolve
+userfaults on the range registered. Not all ioctls will necessarily be
+supported for all memory types depending on the underlying virtual
+memory backend (anonymous memory vs tmpfs vs real filebacked
+mappings).
+
+Userland can use the uffdio_register.ioctls to manage the virtual
+address space in the background (to add or potentially also remove
+memory from the userfaultfd registered range). This means a userfault
+could be triggering just before userland maps in the background the
+user-faulted page. To avoid POLLIN resulting in an unexpected blocking
+read (if the UFFD is not opened in nonblocking mode in the first
+place), we don't allow the background thread to wake userfaults that
+haven't been read by userland yet. If we would do that likely the
+UFFDIO_WAKE ioctl could be dropped. This may change in the future
+(with a UFFD_API protocol bump combined with the removal of the
+UFFDIO_WAKE ioctl) if it'll be demonstrated that it's a valid
+optimization and worthy to force userland to use the UFFD always in
+nonblocking mode if combined with POLLIN.
+
+userfaultfd is also a generic enough feature, that it allows KVM to
+implement postcopy live migration (one form of memory externalization
+consisting of a virtual machine running with part or all of its memory
+residing on a different node in the cloud) without having to modify a
+single line of KVM kernel code. Guest async page faults, FOLL_NOWAIT
+and all other GUP features works just fine in combination with
+userfaults (userfaults trigger async page faults in the guest
+scheduler so those guest processes that aren't waiting for userfaults
+can keep running in the guest vcpus).
+
+The primary ioctl to resolve userfaults is UFFDIO_COPY. That
+atomically copies a page into the userfault registered range and wakes
+up the blocked userfaults (unless uffdio_copy.mode &
+UFFDIO_COPY_MODE_DONTWAKE is set). Other ioctl works similarly to
+UFFDIO_COPY.
