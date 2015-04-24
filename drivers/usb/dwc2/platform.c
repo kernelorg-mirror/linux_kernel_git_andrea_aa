@@ -121,10 +121,8 @@ static int dwc2_driver_remove(struct platform_device *dev)
 {
 	struct dwc2_hsotg *hsotg = platform_get_drvdata(dev);
 
-	if (hsotg->hcd_enabled)
-		dwc2_hcd_remove(hsotg);
-	if (hsotg->gadget_enabled)
-		s3c_hsotg_remove(hsotg);
+	dwc2_hcd_remove(hsotg);
+	s3c_hsotg_remove(hsotg);
 
 	return 0;
 }
@@ -236,23 +234,12 @@ static int dwc2_driver_probe(struct platform_device *dev)
 
 	spin_lock_init(&hsotg->lock);
 	mutex_init(&hsotg->init_mutex);
-
-	if (hsotg->dr_mode != USB_DR_MODE_HOST) {
-		retval = dwc2_gadget_init(hsotg, irq);
-		if (retval)
-			return retval;
-		hsotg->gadget_enabled = 1;
-	}
-
-	if (hsotg->dr_mode != USB_DR_MODE_PERIPHERAL) {
-		retval = dwc2_hcd_init(hsotg, irq, params);
-		if (retval) {
-			if (hsotg->gadget_enabled)
-				s3c_hsotg_remove(hsotg);
-			return retval;
-		}
-		hsotg->hcd_enabled = 1;
-	}
+	retval = dwc2_gadget_init(hsotg, irq);
+	if (retval)
+		return retval;
+	retval = dwc2_hcd_init(hsotg, irq, params);
+	if (retval)
+		return retval;
 
 	platform_set_drvdata(dev, hsotg);
 

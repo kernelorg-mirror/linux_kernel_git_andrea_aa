@@ -58,7 +58,6 @@ struct usbhs_pkt {
 		     struct usbhs_pkt *pkt);
 	struct work_struct work;
 	dma_addr_t dma;
-	dma_cookie_t cookie;
 	void *buf;
 	int length;
 	int trans;

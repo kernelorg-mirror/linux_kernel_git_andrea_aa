@@ -59,13 +59,11 @@ config USB_DWC2_PLATFORM
 
 config USB_DWC2_PCI
 	tristate "DWC2 PCI"
-	depends on PCI
-	default n
-	select USB_DWC2_PLATFORM
-	select NOP_USB_XCEIV
+	depends on USB_DWC2_HOST && PCI
+	default USB_DWC2_HOST
 	help
 	  The Designware USB2.0 PCI interface module for controllers
-	  connected to a PCI bus.
+	  connected to a PCI bus. This is only used for host mode.
 
 config USB_DWC2_DEBUG
 	bool "Enable Debugging Messages"

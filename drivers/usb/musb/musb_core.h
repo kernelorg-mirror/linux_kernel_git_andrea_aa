@@ -160,8 +160,7 @@ struct musb_io;
  * @init:	turns on clocks, sets up platform-specific registers, etc
  * @exit:	undoes @init
  * @set_mode:	forcefully changes operating mode
- * @try_idle:	tries to idle the IP
- * @recover:	platform-specific babble recovery
+ * @try_ilde:	tries to idle the IP
  * @vbus_status: returns vbus status if possible
  * @set_vbus:	forces vbus status
  * @adjust_channel_params: pre check for standard dma channel_program func
@@ -197,7 +196,7 @@ struct musb_platform_ops {
 	void	(*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
 	int	(*set_mode)(struct musb *musb, u8 mode);
 	void	(*try_idle)(struct musb *musb, unsigned long timeout);
-	int	(*recover)(struct musb *musb);
+	int	(*reset)(struct musb *musb);
 
 	int	(*vbus_status)(struct musb *musb);
 	void	(*set_vbus)(struct musb *musb, int on);
@@ -301,6 +300,7 @@ struct musb {
 
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
+	struct delayed_work	recover_work;
 	struct delayed_work	deassert_reset_work;
 	struct delayed_work	finish_resume_work;
 	u16			hwvers;
@@ -558,12 +558,12 @@ static inline void musb_platform_try_idle(struct musb *musb,
 		musb->ops->try_idle(musb, timeout);
 }
 
-static inline int  musb_platform_recover(struct musb *musb)
+static inline int  musb_platform_reset(struct musb *musb)
 {
-	if (!musb->ops->recover)
-		return 0;
+	if (!musb->ops->reset)
+		return -EINVAL;
 
-	return musb->ops->recover(musb);
+	return musb->ops->reset(musb);
 }
 
 static inline int musb_platform_get_vbus_status(struct musb *musb)

@@ -19,8 +19,10 @@ endif
 # mode. The PCI bus interface module will called dwc2_pci.ko and the platform
 # interface module will be called dwc2_platform.ko.
 
-obj-$(CONFIG_USB_DWC2_PCI)		+= dwc2_pci.o
-dwc2_pci-y				:= pci.o
+ifneq ($(CONFIG_USB_DWC2_PCI),)
+	obj-$(CONFIG_USB_DWC2)		+= dwc2_pci.o
+	dwc2_pci-y			:= pci.o
+endif
 
 obj-$(CONFIG_USB_DWC2_PLATFORM)		+= dwc2_platform.o
 dwc2_platform-y				:= platform.o

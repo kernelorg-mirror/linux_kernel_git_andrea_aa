@@ -287,7 +287,9 @@ static struct phy_ops ops = {
 	.owner		= THIS_MODULE,
 };
 
+#ifdef CONFIG_OF
 static const struct of_device_id ti_pipe3_id_table[];
+#endif
 
 static int ti_pipe3_probe(struct platform_device *pdev)
 {
@@ -309,7 +311,8 @@ static int ti_pipe3_probe(struct platform_device *pdev)
 	spin_lock_init(&phy->lock);
 
 	if (!of_device_is_compatible(node, "ti,phy-pipe3-pcie")) {
-		match = of_match_device(ti_pipe3_id_table, &pdev->dev);
+		match = of_match_device(of_match_ptr(ti_pipe3_id_table),
+					&pdev->dev);
 		if (!match)
 			return -EINVAL;
 
@@ -567,6 +570,7 @@ static const struct dev_pm_ops ti_pipe3_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ti_pipe3_suspend, ti_pipe3_resume)
 };
 
+#ifdef CONFIG_OF
 static const struct of_device_id ti_pipe3_id_table[] = {
 	{
 		.compatible = "ti,phy-usb3",
@@ -586,6 +590,7 @@ static const struct of_device_id ti_pipe3_id_table[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(of, ti_pipe3_id_table);
+#endif
 
 static struct platform_driver ti_pipe3_driver = {
 	.probe		= ti_pipe3_probe,
@@ -593,7 +598,7 @@ static struct platform_driver ti_pipe3_driver = {
 	.driver		= {
 		.name	= "ti-pipe3",
 		.pm	= &ti_pipe3_pm_ops,
-		.of_match_table = ti_pipe3_id_table,
+		.of_match_table = of_match_ptr(ti_pipe3_id_table),
 	},
 };
 

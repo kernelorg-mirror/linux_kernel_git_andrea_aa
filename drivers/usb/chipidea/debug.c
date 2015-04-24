@@ -336,8 +336,8 @@ static int ci_registers_show(struct seq_file *s, void *unused)
 	struct ci_hdrc *ci = s->private;
 	u32 tmp_reg;
 
-	if (!ci || ci->in_lpm)
-		return -EPERM;
+	if (!ci)
+		return 0;
 
 	/* ------ Registers ----- */
 	tmp_reg = hw_read_intr_enable(ci);
