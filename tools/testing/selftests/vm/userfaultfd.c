@@ -118,7 +118,7 @@ static void *locking_thread(void *arg)
 {
 	unsigned long cpu = (unsigned long) arg;
 	struct random_data rand;
-	unsigned long page_nr;
+	unsigned long page_nr = *(&(page_nr)); /* uninitialized warning */
 	int32_t rand_nr;
 	unsigned long long count;
 	char randstate[64];
@@ -290,7 +290,7 @@ static void *uffd_poll_thread(void *arg)
 	int ret;
 	unsigned long offset;
 	char tmp_chr;
-	unsigned long long userfaults = 0;
+	unsigned long userfaults = 0;
 
 	pollfd[0].fd = uffd;
 	pollfd[0].events = POLLIN;
@@ -335,12 +335,12 @@ pthread_mutex_t uffd_read_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void *uffd_read_thread(void *arg)
 {
-	unsigned long long *this_cpu_userfaults;
+	unsigned long *this_cpu_userfaults;
 	struct uffd_msg msg;
 	unsigned long offset;
 	int ret;
 
-	this_cpu_userfaults = (unsigned long long *) arg;
+	this_cpu_userfaults = (unsigned long *) arg;
 	*this_cpu_userfaults = 0;
 
 	pthread_mutex_unlock(&uffd_read_mutex);
@@ -357,7 +357,8 @@ static void *uffd_read_thread(void *arg)
 		if (msg.event != UFFD_EVENT_PAGEFAULT)
 			fprintf(stderr, "unexpected msg event %u\n",
 				msg.event), exit(1);
-		if (msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
+		if (bounces & BOUNCE_VERIFY &&
+		    msg.arg.pagefault.flags & UFFD_PAGEFAULT_FLAG_WRITE)
 			fprintf(stderr, "unexpected write fault\n"), exit(1);
 		offset = (char *)msg.arg.pagefault.address - area_dst;
 		offset &= ~(page_size-1);
@@ -380,7 +381,7 @@ static void *background_thread(void *arg)
 	return NULL;
 }
 
-static int stress(unsigned long long *userfaults)
+static int stress(unsigned long *userfaults)
 {
 	unsigned long cpu;
 	pthread_t locking_threads[nr_cpus];
@@ -460,7 +461,7 @@ static int userfaultfd_stress(void)
 	struct uffdio_api uffdio_api;
 	unsigned long cpu;
 	int uffd_flags;
-	unsigned long long userfaults[nr_cpus];
+	unsigned long userfaults[nr_cpus];
 
 	if (posix_memalign(&area, page_size, nr_pages * page_size)) {
 		fprintf(stderr, "out of memory\n");
@@ -634,7 +635,7 @@ static int userfaultfd_stress(void)
 
 		printf("userfaults:");
 		for (cpu = 0; cpu < nr_cpus; cpu++)
-			printf(" %Lu", userfaults[cpu]);
+			printf(" %lu", userfaults[cpu]);
 		printf("\n");
 	}
 
@@ -647,8 +648,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Usage: <MiB> <bounces>\n"), exit(1);
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 	page_size = sysconf(_SC_PAGE_SIZE);
-	if ((unsigned long) area_count((char *)0 +
-				       sizeof(unsigned long long), 0) >
+	if ((unsigned long) area_count(NULL, 0) + sizeof(unsigned long long) >
 	    page_size)
 		fprintf(stderr, "Impossible to run this test\n"), exit(2);
 	nr_pages_per_cpu = atol(argv[1]) * 1024*1024 / page_size /
