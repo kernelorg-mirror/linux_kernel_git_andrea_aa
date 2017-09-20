@@ -1574,6 +1574,11 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 		if (vma->vm_start > start)
 			start = vma->vm_start;
 		vma_end = min(end, vma->vm_end);
+#if 0 /* not necessary */
+		if (userfaultfd_wp(vma))
+			change_protection(vma, start, vma_end,
+				vm_get_page_prot(vma->vm_flags), 1, 0);
+#endif
 
 		if (userfaultfd_missing(vma)) {
 			/*
