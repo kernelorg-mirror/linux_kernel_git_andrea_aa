@@ -44,7 +44,8 @@ static void __kprobes __do_page_fault(struct pt_regs *regs, unsigned long write,
 	const int field = sizeof(unsigned long) * 2;
 	siginfo_t info;
 	int fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+			     FAULT_FLAG_ALLOW_UFFD_RETRY;
 
 	static DEFINE_RATELIMIT_STATE(ratelimit_state, 5 * HZ, 10);
 
@@ -189,6 +190,11 @@ good_area:
 
 			goto retry;
 		}
+	}
+	if ((flags & FAULT_FLAG_ALLOW_UFFD_RETRY) &&
+	    (fault & VM_FAULT_UFFD_RETRY)) {
+		flags &= ~FAULT_FLAG_ALLOW_UFFD_RETRY;
+		goto retry;
 	}
 
 	up_read(&mm->mmap_sem);

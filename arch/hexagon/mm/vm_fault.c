@@ -54,7 +54,8 @@ void do_page_fault(unsigned long address, long cause, struct pt_regs *regs)
 	int si_code = SEGV_MAPERR;
 	int fault;
 	const struct exception_table_entry *fixup;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+			     FAULT_FLAG_ALLOW_UFFD_RETRY;
 
 	/*
 	 * If we're in an interrupt or have no user context,
@@ -119,6 +120,11 @@ good_area:
 				flags |= FAULT_FLAG_TRIED;
 				goto retry;
 			}
+		}
+		if ((flags & FAULT_FLAG_ALLOW_UFFD_RETRY) &&
+		    (fault & VM_FAULT_UFFD_RETRY)) {
+			flags &= ~FAULT_FLAG_ALLOW_UFFD_RETRY;
+			goto retry;
 		}
 
 		up_read(&mm->mmap_sem);

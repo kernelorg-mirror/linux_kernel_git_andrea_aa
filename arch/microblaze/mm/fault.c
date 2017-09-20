@@ -92,7 +92,8 @@ void do_page_fault(struct pt_regs *regs, unsigned long address,
 	int code = SEGV_MAPERR;
 	int is_write = error_code & ESR_S;
 	int fault;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+			     FAULT_FLAG_ALLOW_UFFD_RETRY;
 
 	regs->ear = address;
 	regs->esr = error_code;
@@ -248,6 +249,11 @@ good_area:
 
 			goto retry;
 		}
+	}
+	if ((flags & FAULT_FLAG_ALLOW_UFFD_RETRY) &&
+	    (fault & VM_FAULT_UFFD_RETRY)) {
+		flags &= ~FAULT_FLAG_ALLOW_UFFD_RETRY;
+		goto retry;
 	}
 
 	up_read(&mm->mmap_sem);

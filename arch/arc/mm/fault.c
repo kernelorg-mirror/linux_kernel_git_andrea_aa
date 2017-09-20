@@ -68,7 +68,8 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	siginfo_t info;
 	int fault, ret;
 	int write = regs->ecr_cause & ECR_C_PROTV_STORE;  /* ST/EX */
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+			     FAULT_FLAG_ALLOW_UFFD_RETRY;
 
 	/*
 	 * We fault-in kernel-space virtual memory on-demand. The
@@ -167,6 +168,11 @@ good_area:
 				flags |= FAULT_FLAG_TRIED;
 				goto retry;
 			}
+		}
+		if ((flags & FAULT_FLAG_ALLOW_UFFD_RETRY) &&
+		    (fault & VM_FAULT_UFFD_RETRY)) {
+			flags &= ~FAULT_FLAG_ALLOW_UFFD_RETRY;
+			goto retry;
 		}
 
 		/* Fault Handled Gracefully */

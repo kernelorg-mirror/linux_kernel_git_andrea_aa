@@ -412,7 +412,8 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	 * without first stopping userland access to the memory. For
 	 * VM_UFFD_MISSING userfaults this is enough for now.
 	 */
-	if (unlikely(!(vmf->flags & FAULT_FLAG_ALLOW_RETRY))) {
+	if (unlikely(!(vmf->flags & (FAULT_FLAG_ALLOW_RETRY |
+				     FAULT_FLAG_ALLOW_UFFD_RETRY)))) {
 		/*
 		 * Validate the invariant that nowait must allow retry
 		 * to be sure not to return SIGBUS erroneously on
@@ -482,7 +483,7 @@ int handle_userfault(struct vm_fault *vmf, unsigned long reason)
 		    !fatal_signal_pending(current)))) {
 		wake_up_poll(&ctx->fd_wqh, POLLIN);
 		schedule();
-		ret |= VM_FAULT_MAJOR;
+		ret |= VM_FAULT_MAJOR | VM_FAULT_UFFD_RETRY;
 
 		/*
 		 * False wakeups can orginate even from rwsem before

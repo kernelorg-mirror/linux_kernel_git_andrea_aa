@@ -32,7 +32,8 @@ int handle_page_fault(unsigned long address, unsigned long ip,
 	pmd_t *pmd;
 	pte_t *pte;
 	int err = -EFAULT;
-	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+			     FAULT_FLAG_ALLOW_UFFD_RETRY;
 
 	*code_out = SEGV_MAPERR;
 
@@ -101,6 +102,11 @@ good_area:
 
 				goto retry;
 			}
+		}
+		if ((flags & FAULT_FLAG_ALLOW_UFFD_RETRY) &&
+		    (fault & VM_FAULT_UFFD_RETRY)) {
+			flags &= ~FAULT_FLAG_ALLOW_UFFD_RETRY;
+			goto retry;
 		}
 
 		pgd = pgd_offset(mm, address);

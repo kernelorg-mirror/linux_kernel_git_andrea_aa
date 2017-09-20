@@ -389,7 +389,8 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	struct mm_struct *mm;
 	int fault, sig, code, major = 0;
 	unsigned long vm_flags = VM_READ | VM_WRITE;
-	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+				FAULT_FLAG_ALLOW_UFFD_RETRY;
 
 	if (notify_page_fault(regs, esr))
 		return 0;
@@ -475,6 +476,11 @@ retry:
 			mm_flags |= FAULT_FLAG_TRIED;
 			goto retry;
 		}
+	}
+	if ((mm_flags & FAULT_FLAG_ALLOW_UFFD_RETRY) &&
+	    (fault & VM_FAULT_UFFD_RETRY)) {
+		mm_flags &= ~FAULT_FLAG_ALLOW_UFFD_RETRY;
+		goto retry;
 	}
 	up_read(&mm->mmap_sem);
 

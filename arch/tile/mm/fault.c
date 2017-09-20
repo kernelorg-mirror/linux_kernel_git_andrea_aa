@@ -280,7 +280,8 @@ static int handle_page_fault(struct pt_regs *regs,
 	if (!is_page_fault)
 		write = 1;
 
-	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+		FAULT_FLAG_ALLOW_UFFD_RETRY;
 
 	is_kernel_mode = !user_mode(regs);
 
@@ -467,6 +468,11 @@ good_area:
 			  */
 			goto retry;
 		}
+	}
+	if ((flags & FAULT_FLAG_ALLOW_UFFD_RETRY) &&
+	    (fault & VM_FAULT_UFFD_RETRY)) {
+		flags &= ~FAULT_FLAG_ALLOW_UFFD_RETRY;
+		goto retry;
 	}
 
 #if CHIP_HAS_TILE_DMA()

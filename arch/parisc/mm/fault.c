@@ -273,7 +273,8 @@ void do_page_fault(struct pt_regs *regs, unsigned long code,
 	if (!mm)
 		goto no_context;
 
-	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
+	flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+		FAULT_FLAG_ALLOW_UFFD_RETRY;
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
 
@@ -337,6 +338,11 @@ good_area:
 
 			goto retry;
 		}
+	}
+	if ((flags & FAULT_FLAG_ALLOW_UFFD_RETRY) &&
+	    (fault & VM_FAULT_UFFD_RETRY)) {
+		flags &= ~FAULT_FLAG_ALLOW_UFFD_RETRY;
+		goto retry;
 	}
 	up_read(&mm->mmap_sem);
 	return;
