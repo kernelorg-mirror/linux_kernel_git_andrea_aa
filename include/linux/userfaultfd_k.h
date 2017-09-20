@@ -35,6 +35,8 @@ extern ssize_t mcopy_atomic(struct mm_struct *dst_mm, unsigned long dst_start,
 extern ssize_t mfill_zeropage(struct mm_struct *dst_mm,
 			      unsigned long dst_start,
 			      unsigned long len);
+extern int mwriteprotect_range(struct mm_struct *dst_mm,
+		unsigned long start, unsigned long len, bool enable_wp);
 
 /* remap_pages */
 extern void double_pt_lock(spinlock_t *ptl1, spinlock_t *ptl2);

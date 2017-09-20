@@ -575,6 +575,57 @@ ssize_t mfill_zeropage(struct mm_struct *dst_mm, unsigned long start,
 	return __mcopy_atomic(dst_mm, start, 0, len, true);
 }
 
+int mwriteprotect_range(struct mm_struct *dst_mm, unsigned long start,
+	unsigned long len, bool enable_wp)
+{
+	struct vm_area_struct *dst_vma;
+	pgprot_t newprot;
+	int err;
+
+	/*
+	 * Sanitize the command parameters:
+	 */
+	BUG_ON(start & ~PAGE_MASK);
+	BUG_ON(len & ~PAGE_MASK);
+
+	/* Does the address range wrap, or is the span zero-sized? */
+	BUG_ON(start + len <= start);
+
+	down_read(&dst_mm->mmap_sem);
+
+	/*
+	 * Make sure the vma is not shared, that the dst range is
+	 * both valid and fully within a single existing vma.
+	 */
+	err = -EINVAL;
+	dst_vma = find_vma(dst_mm, start);
+	if (!dst_vma || (dst_vma->vm_flags & VM_SHARED))
+		goto out_unlock;
+	if (start < dst_vma->vm_start ||
+	    start + len > dst_vma->vm_end)
+		goto out_unlock;
+
+	if (!dst_vma->vm_userfaultfd_ctx.ctx)
+		goto out_unlock;
+	if (!userfaultfd_wp(dst_vma))
+		goto out_unlock;
+
+	if (!vma_is_anonymous(dst_vma))
+		goto out_unlock;
+
+	if (enable_wp)
+		newprot = vm_get_page_prot(dst_vma->vm_flags & ~(VM_WRITE));
+	else
+		newprot = vm_get_page_prot(dst_vma->vm_flags);
+
+	change_protection(dst_vma, start, start + len, newprot,
+				!enable_wp, 0);
+
+	err = 0;
+out_unlock:
+	up_read(&dst_mm->mmap_sem);
+	return err;
+}
 
 void double_pt_lock(spinlock_t *ptl1,
 		    spinlock_t *ptl2)
