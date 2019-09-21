@@ -7103,7 +7103,10 @@ void kvm_x86_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 
 void kvm_x86_request_immediate_exit(struct kvm_vcpu *vcpu)
 {
-	to_vmx(vcpu)->req_immediate_exit = true;
+	if (likely(enable_preemption_timer))
+		to_vmx(vcpu)->req_immediate_exit = true;
+	else
+		__kvm_request_immediate_exit(vcpu);
 }
 
 int kvm_x86_check_intercept(struct kvm_vcpu *vcpu,
