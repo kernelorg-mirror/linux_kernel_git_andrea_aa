@@ -26,7 +26,6 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 
 	return 0;
 }
-EXPORT_SYMBOL(kvm_cpu_has_pending_timer);
 
 /*
  * check if there is a pending userspace external interrupt
@@ -109,7 +108,6 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 
 	return kvm_apic_has_interrupt(v) != -1;	/* LAPIC */
 }
-EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
 
 /*
  * Read pending interrupt(from non-APIC source)
@@ -146,14 +144,12 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 
 	return kvm_get_apic_interrupt(v);	/* APIC */
 }
-EXPORT_SYMBOL_GPL(kvm_cpu_get_interrupt);
 
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu)
 {
 	if (lapic_in_kernel(vcpu))
 		kvm_inject_apic_timer_irqs(vcpu);
 }
-EXPORT_SYMBOL_GPL(kvm_inject_pending_timer_irqs);
 
 void __kvm_migrate_timers(struct kvm_vcpu *vcpu)
 {

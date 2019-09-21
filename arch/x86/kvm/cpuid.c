@@ -50,7 +50,6 @@ bool kvm_mpx_supported(void)
 	return ((host_xcr0 & (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR))
 		 && kvm_x86_mpx_supported());
 }
-EXPORT_SYMBOL_GPL(kvm_mpx_supported);
 
 u64 kvm_supported_xcr0(void)
 {
@@ -192,7 +191,6 @@ int cpuid_query_maxphyaddr(struct kvm_vcpu *vcpu)
 not_found:
 	return 36;
 }
-EXPORT_SYMBOL_GPL(cpuid_query_maxphyaddr);
 
 /* when an old userspace process fills a new kernel module */
 int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
@@ -971,7 +969,6 @@ struct kvm_cpuid_entry2 *kvm_find_cpuid_entry(struct kvm_vcpu *vcpu,
 	}
 	return best;
 }
-EXPORT_SYMBOL_GPL(kvm_find_cpuid_entry);
 
 /*
  * If the basic or extended CPUID leaf requested is higher than the
@@ -1035,7 +1032,6 @@ bool kvm_cpuid(struct kvm_vcpu *vcpu, u32 *eax, u32 *ebx,
 	trace_kvm_cpuid(function, *eax, *ebx, *ecx, *edx, found);
 	return found;
 }
-EXPORT_SYMBOL_GPL(kvm_cpuid);
 
 int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 {
@@ -1053,4 +1049,3 @@ int kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	kvm_rdx_write(vcpu, edx);
 	return kvm_skip_emulated_instruction(vcpu);
 }
-EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);

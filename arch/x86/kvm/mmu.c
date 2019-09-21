@@ -317,7 +317,6 @@ void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask, u64 mmio_value, u64 access_mask)
 	shadow_mmio_mask = mmio_mask | SPTE_SPECIAL_MASK;
 	shadow_mmio_access_mask = access_mask;
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_set_mmio_spte_mask);
 
 static bool is_mmio_spte(u64 spte)
 {
@@ -498,7 +497,6 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 	shadow_acc_track_mask = acc_track_mask;
 	shadow_me_mask = me_mask;
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_set_mask_ptes);
 
 static u8 kvm_get_shadow_phys_bits(void)
 {
@@ -1731,7 +1729,6 @@ void kvm_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 		mask &= mask - 1;
 	}
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_clear_dirty_pt_masked);
 
 /**
  * kvm_arch_mmu_enable_log_dirty_pt_masked - enable dirty logging for selected
@@ -2888,7 +2885,6 @@ int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 
 	return r;
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_unprotect_page);
 
 static void kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
@@ -3658,7 +3654,6 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_free_roots);
 
 static int mmu_check_root(struct kvm_vcpu *vcpu, gfn_t root_gfn)
 {
@@ -3883,7 +3878,6 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 	kvm_mmu_audit(vcpu, AUDIT_POST_SYNC);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_sync_roots);
 
 static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr,
 				  u32 access, struct x86_exception *exception)
@@ -4151,7 +4145,6 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 	}
 	return r;
 }
-EXPORT_SYMBOL_GPL(kvm_handle_page_fault);
 
 static bool
 check_hugepage_cache_consistency(struct kvm_vcpu *vcpu, gfn_t gfn, int level)
@@ -4331,7 +4324,6 @@ void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3, bool skip_tlb_flush)
 	__kvm_mmu_new_cr3(vcpu, new_cr3, kvm_mmu_calc_root_page_role(vcpu),
 			  skip_tlb_flush);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_new_cr3);
 
 static unsigned long get_cr3(struct kvm_vcpu *vcpu)
 {
@@ -4571,7 +4563,6 @@ reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
 	}
 
 }
-EXPORT_SYMBOL_GPL(reset_shadow_zero_bits_mask);
 
 static inline bool boot_cpu_is_amd(void)
 {
@@ -4991,7 +4982,6 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 	context->mmu_role.as_u64 = new_role.as_u64;
 	reset_shadow_zero_bits_mask(vcpu, context);
 }
-EXPORT_SYMBOL_GPL(kvm_init_shadow_mmu);
 
 static union kvm_mmu_role
 kvm_calc_shadow_ept_root_page_role(struct kvm_vcpu *vcpu, bool accessed_dirty,
@@ -5055,7 +5045,6 @@ void kvm_init_shadow_ept_mmu(struct kvm_vcpu *vcpu, bool execonly,
 	reset_rsvds_bits_mask_ept(vcpu, context, execonly);
 	reset_ept_shadow_zero_bits_mask(vcpu, context, execonly);
 }
-EXPORT_SYMBOL_GPL(kvm_init_shadow_ept_mmu);
 
 static void init_kvm_softmmu(struct kvm_vcpu *vcpu)
 {
@@ -5135,7 +5124,6 @@ void kvm_init_mmu(struct kvm_vcpu *vcpu, bool reset_roots)
 	else
 		init_kvm_softmmu(vcpu);
 }
-EXPORT_SYMBOL_GPL(kvm_init_mmu);
 
 static union kvm_mmu_page_role
 kvm_mmu_calc_root_page_role(struct kvm_vcpu *vcpu)
@@ -5155,7 +5143,6 @@ void kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 	kvm_mmu_unload(vcpu);
 	kvm_init_mmu(vcpu, true);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_reset_context);
 
 int kvm_mmu_load(struct kvm_vcpu *vcpu)
 {
@@ -5173,7 +5160,6 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 out:
 	return r;
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_load);
 
 void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 {
@@ -5182,7 +5168,6 @@ void kvm_mmu_unload(struct kvm_vcpu *vcpu)
 	kvm_mmu_free_roots(vcpu, &vcpu->arch.guest_mmu, KVM_MMU_ROOTS_ALL);
 	WARN_ON(VALID_PAGE(vcpu->arch.guest_mmu.root_hpa));
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_unload);
 
 static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 				  struct kvm_mmu_page *sp, u64 *spte,
@@ -5394,7 +5379,6 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 
 	return r;
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_unprotect_page_virt);
 
 static int make_mmu_pages_available(struct kvm_vcpu *vcpu)
 {
@@ -5489,7 +5473,6 @@ emulate:
 	return x86_emulate_instruction(vcpu, cr2, emulation_type, insn,
 				       insn_len);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
 
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 {
@@ -5520,7 +5503,6 @@ void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva)
 	kvm_x86_tlb_flush_gva(vcpu, gva);
 	++vcpu->stat.invlpg;
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_invlpg);
 
 void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 {
@@ -5552,19 +5534,16 @@ void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid)
 	 * for them.
 	 */
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_invpcid_gva);
 
 void kvm_enable_tdp(void)
 {
 	tdp_enabled = true;
 }
-EXPORT_SYMBOL_GPL(kvm_enable_tdp);
 
 void kvm_disable_tdp(void)
 {
 	tdp_enabled = false;
 }
-EXPORT_SYMBOL_GPL(kvm_disable_tdp);
 
 
 /* The return value indicates if tlb flush on all vcpus is needed. */
@@ -5963,7 +5942,6 @@ void kvm_mmu_slot_leaf_clear_dirty(struct kvm *kvm,
 		kvm_flush_remote_tlbs_with_address(kvm, memslot->base_gfn,
 				memslot->npages);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_slot_leaf_clear_dirty);
 
 void kvm_mmu_slot_largepage_remove_write_access(struct kvm *kvm,
 					struct kvm_memory_slot *memslot)
@@ -5982,7 +5960,6 @@ void kvm_mmu_slot_largepage_remove_write_access(struct kvm *kvm,
 		kvm_flush_remote_tlbs_with_address(kvm, memslot->base_gfn,
 				memslot->npages);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_slot_largepage_remove_write_access);
 
 void kvm_mmu_slot_set_dirty(struct kvm *kvm,
 			    struct kvm_memory_slot *memslot)
@@ -6000,7 +5977,6 @@ void kvm_mmu_slot_set_dirty(struct kvm *kvm,
 		kvm_flush_remote_tlbs_with_address(kvm, memslot->base_gfn,
 				memslot->npages);
 }
-EXPORT_SYMBOL_GPL(kvm_mmu_slot_set_dirty);
 
 void kvm_mmu_zap_all(struct kvm *kvm)
 {

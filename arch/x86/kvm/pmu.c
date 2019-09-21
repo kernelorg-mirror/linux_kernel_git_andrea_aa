@@ -200,7 +200,6 @@ void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 			      (eventsel & HSW_IN_TX),
 			      (eventsel & HSW_IN_TX_CHECKPOINTED));
 }
-EXPORT_SYMBOL_GPL(reprogram_gp_counter);
 
 void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 ctrl, int idx)
 {
@@ -230,7 +229,6 @@ void reprogram_fixed_counter(struct kvm_pmc *pmc, u8 ctrl, int idx)
 			      !(en_field & 0x1), /* exclude kernel */
 			      pmi, false, false);
 }
-EXPORT_SYMBOL_GPL(reprogram_fixed_counter);
 
 void reprogram_counter(struct kvm_pmu *pmu, int pmc_idx)
 {
@@ -248,7 +246,6 @@ void reprogram_counter(struct kvm_pmu *pmu, int pmc_idx)
 		reprogram_fixed_counter(pmc, ctrl, idx);
 	}
 }
-EXPORT_SYMBOL_GPL(reprogram_counter);
 
 void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 {
