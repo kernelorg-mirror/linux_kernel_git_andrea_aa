@@ -4246,13 +4246,13 @@ static void kvm_sched_out(struct preempt_notifier *pn,
 	kvm_arch_vcpu_put(vcpu);
 }
 
-static void check_processor_compat(void *rtn)
+static __init void check_processor_compat(void *rtn)
 {
 	*(int *)rtn = kvm_arch_check_processor_compat();
 }
 
-int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
-		  struct module *module)
+__init int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
+		    struct module *module)
 {
 	int r;
 	int cpu;

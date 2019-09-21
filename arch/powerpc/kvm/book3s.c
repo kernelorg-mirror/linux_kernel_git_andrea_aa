@@ -1067,7 +1067,7 @@ int kvm_irq_map_chip_pin(struct kvm *kvm, unsigned irqchip, unsigned pin)
 
 #endif /* CONFIG_KVM_XICS */
 
-static int kvmppc_book3s_init(void)
+static __init int kvmppc_book3s_init(void)
 {
 	int r;
 

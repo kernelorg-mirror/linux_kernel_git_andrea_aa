@@ -1726,7 +1726,7 @@ void kvm_arch_exit(void)
 	kvm_perf_teardown();
 }
 
-static int arm_init(void)
+static __init int arm_init(void)
 {
 	int rc = kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 	return rc;
