@@ -998,7 +998,7 @@ struct kvm_lapic_irq {
 	bool msi_redir_hint;
 };
 
-extern __init int kvm_x86_cpu_has_kvm_support(void);
+extern int kvm_x86_cpu_has_kvm_support(void);
 extern __init int kvm_x86_disabled_by_bios(void);
 extern int kvm_x86_hardware_enable(void);
 extern void kvm_x86_hardware_disable(void);
@@ -1190,7 +1190,7 @@ extern bool kvm_x86_apic_init_signal_blocked(struct kvm_vcpu *vcpu);
 extern int kvm_x86_enable_direct_tlbflush(struct kvm_vcpu *vcpu);
 
 struct kvm_x86_ops {
-	int (*cpu_has_kvm_support)(void);          /* __init */
+	int (*cpu_has_kvm_support)(void);
 	int (*disabled_by_bios)(void);             /* __init */
 	int (*hardware_enable)(void);
 	void (*hardware_disable)(void);

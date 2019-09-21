@@ -2178,7 +2178,7 @@ void kvm_x86_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg)
 	}
 }
 
-__init int kvm_x86_cpu_has_kvm_support(void)
+int kvm_x86_cpu_has_kvm_support(void)
 {
 	return cpu_has_vmx();
 }
