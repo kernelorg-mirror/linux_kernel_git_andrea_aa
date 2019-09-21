@@ -92,8 +92,26 @@ void __init check_bugs(void)
 	 * have unknown values. AMD64_LS_CFG MSR is cached in the early AMD
 	 * init code as it is not enumerated and depends on the family.
 	 */
-	if (boot_cpu_has(X86_FEATURE_MSR_SPEC_CTRL))
+	if (boot_cpu_has(X86_FEATURE_MSR_SPEC_CTRL)) {
 		rdmsrl(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base);
+		/*
+		 * Clear the non reserved bits from x86_spec_ctrl_base
+		 * to fix kexec. Otherwise for example SSBD could be
+		 * left enabled despite booting with
+		 * spec_store_bypass_disable=off because SSBD would be
+		 * erroneously mistaken as a reserved bit set by the
+		 * BIOS when in fact it was set by a previous kernel
+		 * booted with spec_store_bypass_disable=on. Careful
+		 * however not to write SPEC_CTRL unnecessarily to
+		 * keep the virt MSR intercept enabled as long as
+		 * possible.
+		 */
+		if (x86_spec_ctrl_base & SPEC_CTRL_ALL) {
+			/* all known bits must not be set at boot, clear it */
+			x86_spec_ctrl_base &= ~SPEC_CTRL_ALL;
+			wrmsrl(MSR_IA32_SPEC_CTRL, x86_spec_ctrl_base);
+		}
+	}
 
 	/* Allow STIBP in MSR_SPEC_CTRL if supported */
 	if (boot_cpu_has(X86_FEATURE_STIBP))
