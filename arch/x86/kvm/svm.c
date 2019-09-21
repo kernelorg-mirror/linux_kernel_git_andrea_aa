@@ -7290,7 +7290,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 
 	.sched_in = kvm_x86_sched_in,
 
-	.pmu_ops = &amd_pmu_ops,
 	.deliver_posted_interrupt = kvm_x86_deliver_posted_interrupt,
 	.dy_apicv_has_pending_interrupt = kvm_x86_dy_apicv_has_pending_interrupt,
 	.update_pi_irte = kvm_x86_update_pi_irte,

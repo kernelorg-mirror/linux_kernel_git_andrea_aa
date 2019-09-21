@@ -1345,9 +1345,6 @@ struct kvm_x86_ops {
 					   gfn_t offset, unsigned long mask);
 	int (*write_log_dirty)(struct kvm_vcpu *vcpu);
 
-	/* pmu operations of sub-arch */
-	const struct kvm_pmu_ops *pmu_ops;
-
 	/*
 	 * Architecture specific hooks for vCPU blocking due to
 	 * HLT instruction.

@@ -359,18 +359,3 @@ void kvm_x86_pmu_reset(struct kvm_vcpu *vcpu)
 	pmu->fixed_ctr_ctrl = pmu->global_ctrl = pmu->global_status =
 		pmu->global_ovf_ctrl = 0;
 }
-
-struct kvm_pmu_ops intel_pmu_ops = {
-	.find_arch_event = kvm_x86_pmu_find_arch_event,
-	.find_fixed_event = kvm_x86_pmu_find_fixed_event,
-	.pmc_is_enabled = kvm_x86_pmu_pmc_is_enabled,
-	.pmc_idx_to_pmc = kvm_x86_pmu_pmc_idx_to_pmc,
-	.msr_idx_to_pmc = kvm_x86_pmu_msr_idx_to_pmc,
-	.is_valid_msr_idx = kvm_x86_pmu_is_valid_msr_idx,
-	.is_valid_msr = kvm_x86_pmu_is_valid_msr,
-	.get_msr = kvm_x86_pmu_get_msr,
-	.set_msr = kvm_x86_pmu_set_msr,
-	.refresh = kvm_x86_pmu_refresh,
-	.init = kvm_x86_pmu_init,
-	.reset = kvm_x86_pmu_reset,
-};

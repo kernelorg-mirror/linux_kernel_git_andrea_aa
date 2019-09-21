@@ -7897,8 +7897,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.pre_block = kvm_x86_pre_block,
 	.post_block = kvm_x86_post_block,
 
-	.pmu_ops = &intel_pmu_ops,
-
 	.update_pi_irte = kvm_x86_update_pi_irte,
 
 #ifdef CONFIG_X86_64
