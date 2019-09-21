@@ -7737,7 +7737,7 @@ __init int kvm_x86_hardware_setup(void)
 	return r;
 }
 
-__exit void kvm_x86_hardware_unsetup(void)
+void kvm_x86_hardware_unsetup(void)
 {
 	if (nested)
 		nested_vmx_hardware_unsetup();

@@ -1004,7 +1004,7 @@ extern int kvm_x86_hardware_enable(void);
 extern void kvm_x86_hardware_disable(void);
 extern __init int kvm_x86_check_processor_compatibility(void);
 extern __init int kvm_x86_hardware_setup(void);
-extern __exit void kvm_x86_hardware_unsetup(void);
+extern void kvm_x86_hardware_unsetup(void);
 extern bool kvm_x86_cpu_has_accelerated_tpr(void);
 extern bool kvm_x86_has_emulated_msr(int index);
 extern void kvm_x86_cpuid_update(struct kvm_vcpu *vcpu);
@@ -1196,7 +1196,7 @@ struct kvm_x86_ops {
 	void (*hardware_disable)(void);
 	int (*check_processor_compatibility)(void);/* __init */
 	int (*hardware_setup)(void);               /* __init */
-	void (*hardware_unsetup)(void);            /* __exit */
+	void (*hardware_unsetup)(void);
 	bool (*cpu_has_accelerated_tpr)(void);
 	bool (*has_emulated_msr)(int index);
 	void (*cpuid_update)(struct kvm_vcpu *vcpu);
