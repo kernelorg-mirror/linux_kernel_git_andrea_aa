@@ -1405,7 +1405,7 @@ err:
 	return r;
 }
 
-__exit void kvm_x86_hardware_unsetup(void)
+void kvm_x86_hardware_unsetup(void)
 {
 	int cpu;
 
