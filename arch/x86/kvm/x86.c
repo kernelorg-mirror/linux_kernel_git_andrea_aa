@@ -9206,7 +9206,7 @@ void kvm_arch_hardware_disable(void)
 	drop_user_return_notifiers();
 }
 
-int kvm_arch_hardware_setup(void)
+__init int kvm_arch_hardware_setup(void)
 {
 	int r;
 
@@ -9237,7 +9237,7 @@ void kvm_arch_hardware_unsetup(void)
 	kvm_x86_hardware_unsetup();
 }
 
-int kvm_arch_check_processor_compat(void)
+__init int kvm_arch_check_processor_compat(void)
 {
 	return kvm_x86_check_processor_compatibility();
 }
