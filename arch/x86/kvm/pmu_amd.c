@@ -126,9 +126,8 @@ static inline struct kvm_pmc *get_gp_pmc_amd(struct kvm_pmu *pmu, u32 msr,
 	return &pmu->gp_counters[msr_to_index(msr)];
 }
 
-static unsigned amd_find_arch_event(struct kvm_pmu *pmu,
-				    u8 event_select,
-				    u8 unit_mask)
+unsigned kvm_x86_pmu_find_arch_event(struct kvm_pmu *pmu, u8 event_select,
+				     u8 unit_mask)
 {
 	int i;
 
@@ -144,7 +143,7 @@ static unsigned amd_find_arch_event(struct kvm_pmu *pmu,
 }
 
 /* return PERF_COUNT_HW_MAX as AMD doesn't have fixed events */
-static unsigned amd_find_fixed_event(int idx)
+unsigned kvm_x86_pmu_find_fixed_event(int idx)
 {
 	return PERF_COUNT_HW_MAX;
 }
@@ -152,12 +151,12 @@ static unsigned amd_find_fixed_event(int idx)
 /* check if a PMC is enabled by comparing it against global_ctrl bits. Because
  * AMD CPU doesn't have global_ctrl MSR, all PMCs are enabled (return TRUE).
  */
-static bool amd_pmc_is_enabled(struct kvm_pmc *pmc)
+bool kvm_x86_pmu_pmc_is_enabled(struct kvm_pmc *pmc)
 {
 	return true;
 }
 
-static struct kvm_pmc *amd_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
+struct kvm_pmc *kvm_x86_pmu_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 {
 	unsigned int base = get_msr_base(pmu, PMU_TYPE_COUNTER);
 	struct kvm_vcpu *vcpu = pmu_to_vcpu(pmu);
@@ -174,7 +173,7 @@ static struct kvm_pmc *amd_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 }
 
 /* returns 0 if idx's corresponding MSR exists; otherwise returns 1. */
-static int amd_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
+int kvm_x86_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 
@@ -184,7 +183,8 @@ static int amd_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 }
 
 /* idx is the ECX register of RDPMC instruction */
-static struct kvm_pmc *amd_msr_idx_to_pmc(struct kvm_vcpu *vcpu, unsigned idx, u64 *mask)
+struct kvm_pmc *kvm_x86_pmu_msr_idx_to_pmc(struct kvm_vcpu *vcpu, unsigned idx,
+					   u64 *mask)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *counters;
@@ -197,7 +197,7 @@ static struct kvm_pmc *amd_msr_idx_to_pmc(struct kvm_vcpu *vcpu, unsigned idx, u
 	return &counters[idx];
 }
 
-static bool amd_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
+bool kvm_x86_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int ret = false;
@@ -208,7 +208,7 @@ static bool amd_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 	return ret;
 }
 
-static int amd_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
+int kvm_x86_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc;
@@ -229,7 +229,7 @@ static int amd_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 	return 1;
 }
 
-static int amd_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
+int kvm_x86_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc;
@@ -256,7 +256,7 @@ static int amd_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 1;
 }
 
-static void amd_pmu_refresh(struct kvm_vcpu *vcpu)
+void kvm_x86_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 
@@ -274,7 +274,7 @@ static void amd_pmu_refresh(struct kvm_vcpu *vcpu)
 	pmu->global_status = 0;
 }
 
-static void amd_pmu_init(struct kvm_vcpu *vcpu)
+void kvm_x86_pmu_init(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int i;
@@ -288,7 +288,7 @@ static void amd_pmu_init(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void amd_pmu_reset(struct kvm_vcpu *vcpu)
+void kvm_x86_pmu_reset(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int i;
@@ -302,16 +302,16 @@ static void amd_pmu_reset(struct kvm_vcpu *vcpu)
 }
 
 struct kvm_pmu_ops amd_pmu_ops = {
-	.find_arch_event = amd_find_arch_event,
-	.find_fixed_event = amd_find_fixed_event,
-	.pmc_is_enabled = amd_pmc_is_enabled,
-	.pmc_idx_to_pmc = amd_pmc_idx_to_pmc,
-	.msr_idx_to_pmc = amd_msr_idx_to_pmc,
-	.is_valid_msr_idx = amd_is_valid_msr_idx,
-	.is_valid_msr = amd_is_valid_msr,
-	.get_msr = amd_pmu_get_msr,
-	.set_msr = amd_pmu_set_msr,
-	.refresh = amd_pmu_refresh,
-	.init = amd_pmu_init,
-	.reset = amd_pmu_reset,
+	.find_arch_event = kvm_x86_pmu_find_arch_event,
+	.find_fixed_event = kvm_x86_pmu_find_fixed_event,
+	.pmc_is_enabled = kvm_x86_pmu_pmc_is_enabled,
+	.pmc_idx_to_pmc = kvm_x86_pmu_pmc_idx_to_pmc,
+	.msr_idx_to_pmc = kvm_x86_pmu_msr_idx_to_pmc,
+	.is_valid_msr_idx = kvm_x86_pmu_is_valid_msr_idx,
+	.is_valid_msr = kvm_x86_pmu_is_valid_msr,
+	.get_msr = kvm_x86_pmu_get_msr,
+	.set_msr = kvm_x86_pmu_set_msr,
+	.refresh = kvm_x86_pmu_refresh,
+	.init = kvm_x86_pmu_init,
+	.reset = kvm_x86_pmu_reset,
 };

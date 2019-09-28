@@ -157,8 +157,8 @@ static inline u8 permission_fault(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 				  unsigned pte_access, unsigned pte_pkey,
 				  unsigned pfec)
 {
-	int cpl = kvm_x86_ops->get_cpl(vcpu);
-	unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
+	int cpl = kvm_x86_get_cpl(vcpu);
+	unsigned long rflags = kvm_x86_get_rflags(vcpu);
 
 	/*
 	 * If CPL < 3, SMAP prevention are disabled if EFLAGS.AC = 1.

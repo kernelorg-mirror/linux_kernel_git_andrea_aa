@@ -19,6 +19,23 @@ struct kvm_event_hw_type_mapping {
 	unsigned event_type;
 };
 
+extern unsigned kvm_x86_pmu_find_arch_event(struct kvm_pmu *pmu,
+					    u8 event_select, u8 unit_mask);
+extern unsigned kvm_x86_pmu_find_fixed_event(int idx);
+extern bool kvm_x86_pmu_pmc_is_enabled(struct kvm_pmc *pmc);
+extern struct kvm_pmc *kvm_x86_pmu_pmc_idx_to_pmc(struct kvm_pmu *pmu,
+						  int pmc_idx);
+extern struct kvm_pmc *kvm_x86_pmu_msr_idx_to_pmc(struct kvm_vcpu *vcpu,
+						  unsigned idx, u64 *mask);
+extern int kvm_x86_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx);
+extern bool kvm_x86_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr);
+extern int kvm_x86_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data);
+extern int kvm_x86_pmu_set_msr(struct kvm_vcpu *vcpu,
+			       struct msr_data *msr_info);
+extern void kvm_x86_pmu_refresh(struct kvm_vcpu *vcpu);
+extern void kvm_x86_pmu_init(struct kvm_vcpu *vcpu);
+extern void kvm_x86_pmu_reset(struct kvm_vcpu *vcpu);
+
 struct kvm_pmu_ops {
 	unsigned (*find_arch_event)(struct kvm_pmu *pmu, u8 event_select,
 				    u8 unit_mask);
@@ -76,7 +93,7 @@ static inline bool pmc_is_fixed(struct kvm_pmc *pmc)
 
 static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
 {
-	return kvm_x86_ops->pmu_ops->pmc_is_enabled(pmc);
+	return kvm_x86_pmu_pmc_is_enabled(pmc);
 }
 
 /* returns general purpose PMC with the specified MSR. Note that it can be
