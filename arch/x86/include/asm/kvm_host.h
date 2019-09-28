@@ -1002,7 +1002,7 @@ struct kvm_lapic_irq {
 	bool msi_redir_hint;
 };
 
-extern __init int kvm_x86_cpu_has_kvm_support(void);
+extern int kvm_x86_cpu_has_kvm_support(void);
 extern __init int kvm_x86_disabled_by_bios(void);
 extern int kvm_x86_hardware_enable(void);
 extern void kvm_x86_hardware_disable(void);
