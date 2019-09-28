@@ -59,9 +59,29 @@ config KVM
 
 	  If unsure, say N.
 
+if KVM=y
+
+choice
+	prompt "To link KVM statically into the kernel you need to choose"
+	help
+	  In order to build a kernel with support for both AMD and Intel
+	  CPUs, you need to set CONFIG_KVM=m.
+
+config KVM_AMD_STATIC
+	select KVM_AMD
+	bool "Link KVM AMD statically into the kernel"
+
+config KVM_INTEL_STATIC
+	select KVM_INTEL
+	bool "Link KVM Intel statically into the kernel"
+
+endchoice
+
+endif
+
 config KVM_INTEL
 	tristate "KVM for Intel processors support"
-	depends on KVM
+	depends on (KVM && !KVM_AMD_STATIC) || KVM_INTEL_STATIC
 	# for perf_guest_get_msrs():
 	depends on CPU_SUP_INTEL
 	---help---
@@ -73,7 +93,7 @@ config KVM_INTEL
 
 config KVM_AMD
 	tristate "KVM for AMD processors support"
-	depends on KVM
+	depends on (KVM && !KVM_INTEL_STATIC) || KVM_AMD_STATIC
 	---help---
 	  Provides support for KVM on AMD processors equipped with the AMD-V
 	  (SVM) extensions.
