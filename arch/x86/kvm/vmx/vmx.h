@@ -305,32 +305,32 @@ struct kvm_vmx {
 
 bool nested_vmx_allowed(struct kvm_vcpu *vcpu);
 void vmx_vcpu_load_vmcs(struct kvm_vcpu *vcpu, int cpu);
-void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
+void kvm_x86_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 int allocate_vpid(void);
 void free_vpid(int vpid);
 void vmx_set_constant_host_state(struct vcpu_vmx *vmx);
-void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu);
+void kvm_x86_prepare_guest_switch(struct kvm_vcpu *vcpu);
 void vmx_set_host_fs_gs(struct vmcs_host_state *host, u16 fs_sel, u16 gs_sel,
 			unsigned long fs_base, unsigned long gs_base);
-int vmx_get_cpl(struct kvm_vcpu *vcpu);
-unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu);
-void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
-u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu);
-void vmx_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask);
-void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer);
-void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
-void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
-int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
+int kvm_x86_get_cpl(struct kvm_vcpu *vcpu);
+unsigned long kvm_x86_get_rflags(struct kvm_vcpu *vcpu);
+void kvm_x86_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
+u32 kvm_x86_get_interrupt_shadow(struct kvm_vcpu *vcpu);
+void kvm_x86_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask);
+void kvm_x86_set_efer(struct kvm_vcpu *vcpu, u64 efer);
+void kvm_x86_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
+void kvm_x86_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
+int kvm_x86_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
 void set_cr4_guest_host_mask(struct vcpu_vmx *vmx);
 void ept_save_pdptrs(struct kvm_vcpu *vcpu);
-void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
-void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
+void kvm_x86_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
+void kvm_x86_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa);
-void update_exception_bitmap(struct kvm_vcpu *vcpu);
+void kvm_x86_update_bp_intercept(struct kvm_vcpu *vcpu);
 void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu);
-bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu);
-void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
-void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
+bool kvm_x86_get_nmi_mask(struct kvm_vcpu *vcpu);
+void kvm_x86_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
+void kvm_x86_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
 struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr);
 void pt_update_intercept_for_msr(struct vcpu_vmx *vmx);
 void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp);
@@ -487,11 +487,6 @@ static inline void __vmx_flush_tlb(struct kvm_vcpu *vcpu, int vpid,
 	} else {
 		vpid_sync_context(vpid);
 	}
-}
-
-static inline void vmx_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa)
-{
-	__vmx_flush_tlb(vcpu, to_vmx(vcpu)->vpid, invalidate_gpa);
 }
 
 static inline void decache_tsc_multiplier(struct vcpu_vmx *vmx)

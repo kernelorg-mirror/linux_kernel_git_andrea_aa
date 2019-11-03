@@ -998,6 +998,197 @@ struct kvm_lapic_irq {
 	bool msi_redir_hint;
 };
 
+extern __init int kvm_x86_cpu_has_kvm_support(void);
+extern __init int kvm_x86_disabled_by_bios(void);
+extern int kvm_x86_hardware_enable(void);
+extern void kvm_x86_hardware_disable(void);
+extern __init int kvm_x86_check_processor_compatibility(void);
+extern __init int kvm_x86_hardware_setup(void);
+extern __exit void kvm_x86_hardware_unsetup(void);
+extern bool kvm_x86_cpu_has_accelerated_tpr(void);
+extern bool kvm_x86_has_emulated_msr(int index);
+extern void kvm_x86_cpuid_update(struct kvm_vcpu *vcpu);
+extern struct kvm *kvm_x86_vm_alloc(void);
+extern void kvm_x86_vm_free(struct kvm *kvm);
+extern int kvm_x86_vm_init(struct kvm *kvm);
+extern void kvm_x86_vm_destroy(struct kvm *kvm);
+/* Create, but do not attach this VCPU */
+extern struct kvm_vcpu *kvm_x86_vcpu_create(struct kvm *kvm, unsigned id);
+extern void kvm_x86_vcpu_free(struct kvm_vcpu *vcpu);
+extern void kvm_x86_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event);
+extern void kvm_x86_prepare_guest_switch(struct kvm_vcpu *vcpu);
+extern void kvm_x86_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
+extern void kvm_x86_vcpu_put(struct kvm_vcpu *vcpu);
+extern void kvm_x86_update_bp_intercept(struct kvm_vcpu *vcpu);
+extern int kvm_x86_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr);
+extern int kvm_x86_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr);
+extern u64 kvm_x86_get_segment_base(struct kvm_vcpu *vcpu, int seg);
+extern void kvm_x86_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var,
+				int seg);
+extern int kvm_x86_get_cpl(struct kvm_vcpu *vcpu);
+extern void kvm_x86_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var,
+				int seg);
+extern void kvm_x86_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l);
+extern void kvm_x86_decache_cr0_guest_bits(struct kvm_vcpu *vcpu);
+extern void kvm_x86_decache_cr3(struct kvm_vcpu *vcpu);
+extern void kvm_x86_decache_cr4_guest_bits(struct kvm_vcpu *vcpu);
+extern void kvm_x86_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
+extern void kvm_x86_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
+extern int kvm_x86_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
+extern void kvm_x86_set_efer(struct kvm_vcpu *vcpu, u64 efer);
+extern void kvm_x86_get_idt(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
+extern void kvm_x86_set_idt(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
+extern void kvm_x86_get_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
+extern void kvm_x86_set_gdt(struct kvm_vcpu *vcpu, struct desc_ptr *dt);
+extern u64 kvm_x86_get_dr6(struct kvm_vcpu *vcpu);
+extern void kvm_x86_set_dr6(struct kvm_vcpu *vcpu, unsigned long value);
+extern void kvm_x86_sync_dirty_debug_regs(struct kvm_vcpu *vcpu);
+extern void kvm_x86_set_dr7(struct kvm_vcpu *vcpu, unsigned long value);
+extern void kvm_x86_cache_reg(struct kvm_vcpu *vcpu, enum kvm_reg reg);
+extern unsigned long kvm_x86_get_rflags(struct kvm_vcpu *vcpu);
+extern void kvm_x86_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags);
+extern void kvm_x86_tlb_flush(struct kvm_vcpu *vcpu, bool invalidate_gpa);
+extern int kvm_x86_tlb_remote_flush(struct kvm *kvm);
+extern int kvm_x86_tlb_remote_flush_with_range(struct kvm *kvm,
+					       struct kvm_tlb_range *range);
+/*
+ * Flush any TLB entries associated with the given GVA.
+ * Does not need to flush GPA->HPA mappings.
+ * Can potentially get non-canonical addresses through INVLPGs, which
+ * the implementation may choose to ignore if appropriate.
+ */
+extern void kvm_x86_tlb_flush_gva(struct kvm_vcpu *vcpu, gva_t addr);
+extern void kvm_x86_run(struct kvm_vcpu *vcpu);
+extern int kvm_x86_handle_exit(struct kvm_vcpu *vcpu);
+extern int kvm_x86_skip_emulated_instruction(struct kvm_vcpu *vcpu);
+extern void kvm_x86_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask);
+extern u32 kvm_x86_get_interrupt_shadow(struct kvm_vcpu *vcpu);
+extern void kvm_x86_patch_hypercall(struct kvm_vcpu *vcpu,
+				    unsigned char *hypercall_addr);
+extern void kvm_x86_set_irq(struct kvm_vcpu *vcpu);
+extern void kvm_x86_set_nmi(struct kvm_vcpu *vcpu);
+extern void kvm_x86_queue_exception(struct kvm_vcpu *vcpu);
+extern void kvm_x86_cancel_injection(struct kvm_vcpu *vcpu);
+extern int kvm_x86_interrupt_allowed(struct kvm_vcpu *vcpu);
+extern int kvm_x86_nmi_allowed(struct kvm_vcpu *vcpu);
+extern bool kvm_x86_get_nmi_mask(struct kvm_vcpu *vcpu);
+extern void kvm_x86_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
+extern void kvm_x86_enable_nmi_window(struct kvm_vcpu *vcpu);
+extern void kvm_x86_enable_irq_window(struct kvm_vcpu *vcpu);
+extern void kvm_x86_update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr,
+					 int irr);
+extern bool kvm_x86_get_enable_apicv(struct kvm_vcpu *vcpu);
+extern void kvm_x86_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu);
+extern void kvm_x86_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr);
+extern void kvm_x86_hwapic_isr_update(struct kvm_vcpu *vcpu, int isr);
+extern bool kvm_x86_guest_apic_has_interrupt(struct kvm_vcpu *vcpu);
+extern void kvm_x86_load_eoi_exitmap(struct kvm_vcpu *vcpu,
+				     u64 *eoi_exit_bitmap);
+extern void kvm_x86_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
+extern void kvm_x86_set_apic_access_page_addr(struct kvm_vcpu *vcpu,
+					      hpa_t hpa);
+extern void kvm_x86_deliver_posted_interrupt(struct kvm_vcpu *vcpu,
+					     int vector);
+extern int kvm_x86_sync_pir_to_irr(struct kvm_vcpu *vcpu);
+extern int kvm_x86_set_tss_addr(struct kvm *kvm, unsigned int addr);
+extern int kvm_x86_set_identity_map_addr(struct kvm *kvm, u64 ident_addr);
+extern int kvm_x86_get_tdp_level(struct kvm_vcpu *vcpu);
+extern u64 kvm_x86_get_mt_mask(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
+extern int kvm_x86_get_lpage_level(void);
+extern bool kvm_x86_rdtscp_supported(void);
+extern bool kvm_x86_invpcid_supported(void);
+extern void kvm_x86_set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);
+extern void kvm_x86_set_supported_cpuid(u32 func,
+					struct kvm_cpuid_entry2 *entry);
+extern bool kvm_x86_has_wbinvd_exit(void);
+extern u64 kvm_x86_read_l1_tsc_offset(struct kvm_vcpu *vcpu);
+/* Returns actual tsc_offset set in active VMCS */
+extern u64 kvm_x86_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset);
+extern void kvm_x86_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1,
+				  u64 *info2);
+extern int kvm_x86_check_intercept(struct kvm_vcpu *vcpu,
+				   struct x86_instruction_info *info,
+				   enum x86_intercept_stage stage);
+extern void kvm_x86_handle_exit_irqoff(struct kvm_vcpu *vcpu);
+extern bool kvm_x86_mpx_supported(void);
+extern bool kvm_x86_xsaves_supported(void);
+extern bool kvm_x86_umip_emulated(void);
+extern bool kvm_x86_pt_supported(void);
+extern int kvm_x86_check_nested_events(struct kvm_vcpu *vcpu,
+				       bool external_intr);
+extern void kvm_x86_request_immediate_exit(struct kvm_vcpu *vcpu);
+extern void kvm_x86_sched_in(struct kvm_vcpu *kvm, int cpu);
+/*
+ * Arch-specific dirty logging hooks. These hooks are only supposed to
+ * be valid if the specific arch has hardware-accelerated dirty logging
+ * mechanism. Currently only for PML on VMX.
+ *
+ *  - slot_enable_log_dirty:
+ *	called when enabling log dirty mode for the slot.
+ *  - slot_disable_log_dirty:
+ *	called when disabling log dirty mode for the slot.
+ *	also called when slot is created with log dirty disabled.
+ *  - flush_log_dirty:
+ *	called before reporting dirty_bitmap to userspace.
+ *  - enable_log_dirty_pt_masked:
+ *	called when reenabling log dirty for the GFNs in the mask after
+ *	corresponding bits are cleared in slot->dirty_bitmap.
+ */
+extern void kvm_x86_slot_enable_log_dirty(struct kvm *kvm,
+					  struct kvm_memory_slot *slot);
+extern void kvm_x86_slot_disable_log_dirty(struct kvm *kvm,
+					   struct kvm_memory_slot *slot);
+extern void kvm_x86_flush_log_dirty(struct kvm *kvm);
+extern void kvm_x86_enable_log_dirty_pt_masked(struct kvm *kvm,
+					       struct kvm_memory_slot *slot,
+					       gfn_t offset,
+					       unsigned long mask);
+extern int kvm_x86_write_log_dirty(struct kvm_vcpu *vcpu);
+/*
+ * Architecture specific hooks for vCPU blocking due to
+ * HLT instruction.
+ * Returns for .pre_block():
+ *    - 0 means continue to block the vCPU.
+ *    - 1 means we cannot block the vCPU since some event
+ *        happens during this period, such as, 'ON' bit in
+ *        posted-interrupts descriptor is set.
+ */
+extern int kvm_x86_pre_block(struct kvm_vcpu *vcpu);
+extern void kvm_x86_post_block(struct kvm_vcpu *vcpu);
+extern void kvm_x86_vcpu_blocking(struct kvm_vcpu *vcpu);
+extern void kvm_x86_vcpu_unblocking(struct kvm_vcpu *vcpu);
+extern int kvm_x86_update_pi_irte(struct kvm *kvm, unsigned int host_irq,
+				  uint32_t guest_irq, bool set);
+extern void kvm_x86_apicv_post_state_restore(struct kvm_vcpu *vcpu);
+extern bool kvm_x86_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
+extern int kvm_x86_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc,
+				bool *expired);
+extern void kvm_x86_cancel_hv_timer(struct kvm_vcpu *vcpu);
+extern void kvm_x86_setup_mce(struct kvm_vcpu *vcpu);
+extern int kvm_x86_get_nested_state(struct kvm_vcpu *vcpu,
+				    struct kvm_nested_state __user *user_kvm_nested_state,
+				    unsigned user_data_size);
+extern int kvm_x86_set_nested_state(struct kvm_vcpu *vcpu,
+				    struct kvm_nested_state __user *user_kvm_nested_state,
+				    struct kvm_nested_state *kvm_state);
+extern bool kvm_x86_get_vmcs12_pages(struct kvm_vcpu *vcpu);
+extern int kvm_x86_smi_allowed(struct kvm_vcpu *vcpu);
+extern int kvm_x86_pre_enter_smm(struct kvm_vcpu *vcpu, char *smstate);
+extern int kvm_x86_pre_leave_smm(struct kvm_vcpu *vcpu, const char *smstate);
+extern int kvm_x86_enable_smi_window(struct kvm_vcpu *vcpu);
+extern int kvm_x86_mem_enc_op(struct kvm *kvm, void __user *argp);
+extern int kvm_x86_mem_enc_reg_region(struct kvm *kvm,
+				      struct kvm_enc_region *argp);
+extern int kvm_x86_mem_enc_unreg_region(struct kvm *kvm,
+					struct kvm_enc_region *argp);
+extern int kvm_x86_get_msr_feature(struct kvm_msr_entry *entry);
+extern int kvm_x86_nested_enable_evmcs(struct kvm_vcpu *vcpu,
+				       uint16_t *vmcs_version);
+extern uint16_t kvm_x86_nested_get_evmcs_version(struct kvm_vcpu *vcpu);
+extern bool kvm_x86_need_emulation_on_page_fault(struct kvm_vcpu *vcpu);
+extern bool kvm_x86_apic_init_signal_blocked(struct kvm_vcpu *vcpu);
+extern int kvm_x86_enable_direct_tlbflush(struct kvm_vcpu *vcpu);
+
 struct kvm_x86_ops {
 	int (*cpu_has_kvm_support)(void);          /* __init */
 	int (*disabled_by_bios)(void);             /* __init */
@@ -1225,19 +1416,19 @@ extern struct kmem_cache *x86_fpu_cache;
 #define __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
 {
-	return kvm_x86_ops->vm_alloc();
+	return kvm_x86_vm_alloc();
 }
 
 static inline void kvm_arch_free_vm(struct kvm *kvm)
 {
-	return kvm_x86_ops->vm_free(kvm);
+	return kvm_x86_vm_free(kvm);
 }
 
 #define __KVM_HAVE_ARCH_FLUSH_REMOTE_TLB
 static inline int kvm_arch_flush_remote_tlb(struct kvm *kvm)
 {
 	if (kvm_x86_ops->tlb_remote_flush &&
-	    !kvm_x86_ops->tlb_remote_flush(kvm))
+	    !kvm_x86_tlb_remote_flush(kvm))
 		return 0;
 	else
 		return -ENOTSUPP;
@@ -1322,7 +1513,7 @@ extern u64 kvm_mce_cap_supported;
  *
  * EMULTYPE_SKIP - Set when emulating solely to skip an instruction, i.e. to
  *		   decode the instruction length.  For use *only* by
- *		   kvm_x86_ops->skip_emulated_instruction() implementations.
+ *		   kvm_x86_skip_emulated_instruction() implementations.
  *
  * EMULTYPE_ALLOW_RETRY - Set when the emulator should resume the guest to
  *			  retry native execution under certain conditions.
@@ -1608,13 +1799,13 @@ static inline bool kvm_irq_is_postable(struct kvm_lapic_irq *irq)
 static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu)
 {
 	if (kvm_x86_ops->vcpu_blocking)
-		kvm_x86_ops->vcpu_blocking(vcpu);
+		kvm_x86_vcpu_blocking(vcpu);
 }
 
 static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu)
 {
 	if (kvm_x86_ops->vcpu_unblocking)
-		kvm_x86_ops->vcpu_unblocking(vcpu);
+		kvm_x86_vcpu_unblocking(vcpu);
 }
 
 static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}

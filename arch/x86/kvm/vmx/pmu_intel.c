@@ -64,9 +64,8 @@ static void global_ctrl_changed(struct kvm_pmu *pmu, u64 data)
 		reprogram_counter(pmu, bit);
 }
 
-static unsigned intel_find_arch_event(struct kvm_pmu *pmu,
-				      u8 event_select,
-				      u8 unit_mask)
+unsigned kvm_x86_pmu_find_arch_event(struct kvm_pmu *pmu, u8 event_select,
+				     u8 unit_mask)
 {
 	int i;
 
@@ -82,7 +81,7 @@ static unsigned intel_find_arch_event(struct kvm_pmu *pmu,
 	return intel_arch_events[i].event_type;
 }
 
-static unsigned intel_find_fixed_event(int idx)
+unsigned kvm_x86_pmu_find_fixed_event(int idx)
 {
 	if (idx >= ARRAY_SIZE(fixed_pmc_events))
 		return PERF_COUNT_HW_MAX;
@@ -91,14 +90,14 @@ static unsigned intel_find_fixed_event(int idx)
 }
 
 /* check if a PMC is enabled by comparing it with globl_ctrl bits. */
-static bool intel_pmc_is_enabled(struct kvm_pmc *pmc)
+bool kvm_x86_pmu_pmc_is_enabled(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
 	return test_bit(pmc->idx, (unsigned long *)&pmu->global_ctrl);
 }
 
-static struct kvm_pmc *intel_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
+struct kvm_pmc *kvm_x86_pmu_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 {
 	if (pmc_idx < INTEL_PMC_IDX_FIXED)
 		return get_gp_pmc(pmu, MSR_P6_EVNTSEL0 + pmc_idx,
@@ -111,7 +110,7 @@ static struct kvm_pmc *intel_pmc_idx_to_pmc(struct kvm_pmu *pmu, int pmc_idx)
 }
 
 /* returns 0 if idx's corresponding MSR exists; otherwise returns 1. */
-static int intel_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
+int kvm_x86_pmu_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	bool fixed = idx & (1u << 30);
@@ -122,8 +121,8 @@ static int intel_is_valid_msr_idx(struct kvm_vcpu *vcpu, unsigned idx)
 		(fixed && idx >= pmu->nr_arch_fixed_counters);
 }
 
-static struct kvm_pmc *intel_msr_idx_to_pmc(struct kvm_vcpu *vcpu,
-					    unsigned idx, u64 *mask)
+struct kvm_pmc *kvm_x86_pmu_msr_idx_to_pmc(struct kvm_vcpu *vcpu, unsigned idx,
+					   u64 *mask)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	bool fixed = idx & (1u << 30);
@@ -140,7 +139,7 @@ static struct kvm_pmc *intel_msr_idx_to_pmc(struct kvm_vcpu *vcpu,
 	return &counters[idx];
 }
 
-static bool intel_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
+bool kvm_x86_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	int ret;
@@ -162,7 +161,7 @@ static bool intel_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 	return ret;
 }
 
-static int intel_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
+int kvm_x86_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc;
@@ -198,7 +197,7 @@ static int intel_pmu_get_msr(struct kvm_vcpu *vcpu, u32 msr, u64 *data)
 	return 1;
 }
 
-static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
+int kvm_x86_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc;
@@ -259,7 +258,7 @@ static int intel_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	return 1;
 }
 
-static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
+void kvm_x86_pmu_refresh(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct x86_pmu_capability x86_pmu;
@@ -308,7 +307,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 	pmu->global_ovf_ctrl_mask = pmu->global_ctrl_mask
 			& ~(MSR_CORE_PERF_GLOBAL_OVF_CTRL_OVF_BUF |
 			    MSR_CORE_PERF_GLOBAL_OVF_CTRL_COND_CHGD);
-	if (kvm_x86_ops->pt_supported())
+	if (kvm_x86_pt_supported())
 		pmu->global_ovf_ctrl_mask &=
 				~MSR_CORE_PERF_GLOBAL_OVF_CTRL_TRACE_TOPA_PMI;
 
@@ -319,7 +318,7 @@ static void intel_pmu_refresh(struct kvm_vcpu *vcpu)
 		pmu->reserved_bits ^= HSW_IN_TX|HSW_IN_TX_CHECKPOINTED;
 }
 
-static void intel_pmu_init(struct kvm_vcpu *vcpu)
+void kvm_x86_pmu_init(struct kvm_vcpu *vcpu)
 {
 	int i;
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
@@ -337,7 +336,7 @@ static void intel_pmu_init(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void intel_pmu_reset(struct kvm_vcpu *vcpu)
+void kvm_x86_pmu_reset(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
 	struct kvm_pmc *pmc = NULL;
@@ -362,16 +361,16 @@ static void intel_pmu_reset(struct kvm_vcpu *vcpu)
 }
 
 struct kvm_pmu_ops intel_pmu_ops = {
-	.find_arch_event = intel_find_arch_event,
-	.find_fixed_event = intel_find_fixed_event,
-	.pmc_is_enabled = intel_pmc_is_enabled,
-	.pmc_idx_to_pmc = intel_pmc_idx_to_pmc,
-	.msr_idx_to_pmc = intel_msr_idx_to_pmc,
-	.is_valid_msr_idx = intel_is_valid_msr_idx,
-	.is_valid_msr = intel_is_valid_msr,
-	.get_msr = intel_pmu_get_msr,
-	.set_msr = intel_pmu_set_msr,
-	.refresh = intel_pmu_refresh,
-	.init = intel_pmu_init,
-	.reset = intel_pmu_reset,
+	.find_arch_event = kvm_x86_pmu_find_arch_event,
+	.find_fixed_event = kvm_x86_pmu_find_fixed_event,
+	.pmc_is_enabled = kvm_x86_pmu_pmc_is_enabled,
+	.pmc_idx_to_pmc = kvm_x86_pmu_pmc_idx_to_pmc,
+	.msr_idx_to_pmc = kvm_x86_pmu_msr_idx_to_pmc,
+	.is_valid_msr_idx = kvm_x86_pmu_is_valid_msr_idx,
+	.is_valid_msr = kvm_x86_pmu_is_valid_msr,
+	.get_msr = kvm_x86_pmu_get_msr,
+	.set_msr = kvm_x86_pmu_set_msr,
+	.refresh = kvm_x86_pmu_refresh,
+	.init = kvm_x86_pmu_init,
+	.reset = kvm_x86_pmu_reset,
 };

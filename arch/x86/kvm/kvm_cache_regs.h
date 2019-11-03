@@ -41,7 +41,7 @@ static inline unsigned long kvm_register_read(struct kvm_vcpu *vcpu,
 					      enum kvm_reg reg)
 {
 	if (!test_bit(reg, (unsigned long *)&vcpu->arch.regs_avail))
-		kvm_x86_ops->cache_reg(vcpu, reg);
+		kvm_x86_cache_reg(vcpu, reg);
 
 	return vcpu->arch.regs[reg];
 }
@@ -81,7 +81,7 @@ static inline u64 kvm_pdptr_read(struct kvm_vcpu *vcpu, int index)
 
 	if (!test_bit(VCPU_EXREG_PDPTR,
 		      (unsigned long *)&vcpu->arch.regs_avail))
-		kvm_x86_ops->cache_reg(vcpu, (enum kvm_reg)VCPU_EXREG_PDPTR);
+		kvm_x86_cache_reg(vcpu, (enum kvm_reg)VCPU_EXREG_PDPTR);
 
 	return vcpu->arch.walk_mmu->pdptrs[index];
 }
@@ -90,7 +90,7 @@ static inline ulong kvm_read_cr0_bits(struct kvm_vcpu *vcpu, ulong mask)
 {
 	ulong tmask = mask & KVM_POSSIBLE_CR0_GUEST_BITS;
 	if (tmask & vcpu->arch.cr0_guest_owned_bits)
-		kvm_x86_ops->decache_cr0_guest_bits(vcpu);
+		kvm_x86_decache_cr0_guest_bits(vcpu);
 	return vcpu->arch.cr0 & mask;
 }
 
@@ -103,14 +103,14 @@ static inline ulong kvm_read_cr4_bits(struct kvm_vcpu *vcpu, ulong mask)
 {
 	ulong tmask = mask & KVM_POSSIBLE_CR4_GUEST_BITS;
 	if (tmask & vcpu->arch.cr4_guest_owned_bits)
-		kvm_x86_ops->decache_cr4_guest_bits(vcpu);
+		kvm_x86_decache_cr4_guest_bits(vcpu);
 	return vcpu->arch.cr4 & mask;
 }
 
 static inline ulong kvm_read_cr3(struct kvm_vcpu *vcpu)
 {
 	if (!test_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail))
-		kvm_x86_ops->decache_cr3(vcpu);
+		kvm_x86_decache_cr3(vcpu);
 	return vcpu->arch.cr3;
 }
 

@@ -48,7 +48,7 @@ static u32 xstate_required_size(u64 xstate_bv, bool compacted)
 bool kvm_mpx_supported(void)
 {
 	return ((host_xcr0 & (XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR))
-		 && kvm_x86_ops->mpx_supported());
+		 && kvm_x86_mpx_supported());
 }
 EXPORT_SYMBOL_GPL(kvm_mpx_supported);
 
@@ -232,7 +232,7 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	vcpu->arch.cpuid_nent = cpuid->nent;
 	cpuid_fix_nx_cap(vcpu);
 	kvm_apic_set_version(vcpu);
-	kvm_x86_ops->cpuid_update(vcpu);
+	kvm_x86_cpuid_update(vcpu);
 	r = kvm_update_cpuid(vcpu);
 
 out:
@@ -255,7 +255,7 @@ int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
 		goto out;
 	vcpu->arch.cpuid_nent = cpuid->nent;
 	kvm_apic_set_version(vcpu);
-	kvm_x86_ops->cpuid_update(vcpu);
+	kvm_x86_cpuid_update(vcpu);
 	r = kvm_update_cpuid(vcpu);
 out:
 	return r;
@@ -347,10 +347,10 @@ static int __do_cpuid_func_emulated(struct kvm_cpuid_entry2 *entry,
 
 static inline void do_cpuid_7_mask(struct kvm_cpuid_entry2 *entry, int index)
 {
-	unsigned f_invpcid = kvm_x86_ops->invpcid_supported() ? F(INVPCID) : 0;
+	unsigned f_invpcid = kvm_x86_invpcid_supported() ? F(INVPCID) : 0;
 	unsigned f_mpx = kvm_mpx_supported() ? F(MPX) : 0;
-	unsigned f_umip = kvm_x86_ops->umip_emulated() ? F(UMIP) : 0;
-	unsigned f_intel_pt = kvm_x86_ops->pt_supported() ? F(INTEL_PT) : 0;
+	unsigned f_umip = kvm_x86_umip_emulated() ? F(UMIP) : 0;
+	unsigned f_intel_pt = kvm_x86_pt_supported() ? F(INTEL_PT) : 0;
 	unsigned f_la57;
 
 	/* cpuid 7.0.ebx */
@@ -432,16 +432,16 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 	int r;
 	unsigned f_nx = is_efer_nx() ? F(NX) : 0;
 #ifdef CONFIG_X86_64
-	unsigned f_gbpages = (kvm_x86_ops->get_lpage_level() == PT_PDPE_LEVEL)
+	unsigned f_gbpages = (kvm_x86_get_lpage_level() == PT_PDPE_LEVEL)
 				? F(GBPAGES) : 0;
 	unsigned f_lm = F(LM);
 #else
 	unsigned f_gbpages = 0;
 	unsigned f_lm = 0;
 #endif
-	unsigned f_rdtscp = kvm_x86_ops->rdtscp_supported() ? F(RDTSCP) : 0;
-	unsigned f_xsaves = kvm_x86_ops->xsaves_supported() ? F(XSAVES) : 0;
-	unsigned f_intel_pt = kvm_x86_ops->pt_supported() ? F(INTEL_PT) : 0;
+	unsigned f_rdtscp = kvm_x86_rdtscp_supported() ? F(RDTSCP) : 0;
+	unsigned f_xsaves = kvm_x86_xsaves_supported() ? F(XSAVES) : 0;
+	unsigned f_intel_pt = kvm_x86_pt_supported() ? F(INTEL_PT) : 0;
 
 	/* cpuid 1.edx */
 	const u32 kvm_cpuid_1_edx_x86_features =
@@ -797,7 +797,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_entry2 *entry, u32 function,
 		break;
 	}
 
-	kvm_x86_ops->set_supported_cpuid(function, entry);
+	kvm_x86_set_supported_cpuid(function, entry);
 
 	r = 0;
 
