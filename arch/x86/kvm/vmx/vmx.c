@@ -7195,6 +7195,17 @@ void kvm_x86_cancel_hv_timer(struct kvm_vcpu *vcpu)
 {
 	to_vmx(vcpu)->hv_deadline_tsc = -1;
 }
+#else
+int kvm_x86_set_hv_timer(struct kvm_vcpu *vcpu, u64 guest_deadline_tsc,
+			 bool *expired)
+{
+	BUG();
+}
+
+void kvm_x86_cancel_hv_timer(struct kvm_vcpu *vcpu)
+{
+	BUG();
+}
 #endif
 
 void kvm_x86_sched_in(struct kvm_vcpu *vcpu, int cpu)
